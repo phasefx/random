@@ -1,8 +1,3 @@
-This repo is for putting random things in.
+Hatch - Java Print / Storage / Etc Service
 
-You can push to it from your own repos without building off of the master branch, or anything else in it really. For example:
-
-git add random git@git.evergreen-ils.org:working/random
-git push random local_branch:user/yourusername/local_branch
-
-Otherwise it follows the rules of working repos.
+TODO: more info
