@@ -1,0 +1,162 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure.dtd">
+
+<Configure id="Server" class="org.eclipse.jetty.server.Server">
+
+  <!--
+  <Set class="org.eclipse.jetty.util.log.StdErrLog" name="level">LEVEL_DEBUG</Set>
+  -->
+  <Get id="Logger" class="org.eclipse.jetty.util.log.Log" name="log"/>
+  <Ref id="Logger">
+    <Set name="debugEnabled">true</Set>
+  </Ref>
+
+  <Set class="org.evergreen_ils.hatch.HatchWebSocketHandler" name="trustedDomains">
+    <Array type="String">
+        <!-- 
+        List of origin domains which are allowed to connect to Hatch.
+        If the first item in the list is "*", then all domains are 
+        trusted, which is useful for testing.
+        -->
+        <Item>*</Item>
+    </Array>
+  </Set>
+
+  <!--
+  <Set class="org.evergreen_ils.hatch.HatchWebSocketHandler" 
+    name="profileDirectory"></Set>
+  -->
+
+  <!-- basic HTTP setup -->
+  <New id="httpConfig" class="org.eclipse.jetty.server.HttpConfiguration">   
+    <Set name="secureScheme">https</Set>                                     
+    <Set name="securePort"><Property name="jetty.secure.port" default="8443" /></Set>
+    <Set name="outputBufferSize"><Property name="jetty.output.buffer.size" default="32768" /></Set>
+    <Set name="requestHeaderSize"><Property name="jetty.request.header.size" default="8192" /></Set>
+    <Set name="responseHeaderSize"><Property name="jetty.response.header.size" default="8192" /></Set>
+    <Set name="sendServerVersion"><Property name="jetty.send.server.version" default="true" /></Set>
+    <Set name="sendDateHeader"><Property name="jetty.send.date.header" default="false" /></Set>
+    <Set name="headerCacheSize">512</Set>                                    
+  </New>
+
+  <!-- SSL configuration -->
+  <!-- Using the stock Jetty certificates for now.  
+       To set a temporary trust on the cert, navigate to 
+       https://<hostname>:8443/ and confirm the cert is trusted -->
+  <New id="sslContextFactory" class="org.eclipse.jetty.util.ssl.SslContextFactory">
+    <!-- TODO: make this better -->
+    <Set name="KeyStorePath"><Property name="jetty.home" default="." />/jetty-distribution-9.1.4.v20140401/etc/keystore</Set>
+    <Set name="KeyStorePassword">OBF:1vny1zlo1x8e1vnw1vn61x8g1zlu1vn4</Set>    
+    <Set name="KeyManagerPassword">OBF:1u2u1wml1z7s1z7a1wnl1u2g</Set>          
+    <Set name="TrustStorePath"><Property name="jetty.home" default="." />/jetty-distribution-9.1.4.v20140401/etc/keystore</Set>
+    <Set name="TrustStorePassword">OBF:1vny1zlo1x8e1vnw1vn61x8g1zlu1vn4</Set>  
+  </New> 
+
+  <New id="sslHttpConfig" class="org.eclipse.jetty.server.HttpConfiguration">  
+    <Arg><Ref refid="httpConfig"/></Arg>                                       
+    <Call name="addCustomizer">                                                
+      <Arg><New class="org.eclipse.jetty.server.SecureRequestCustomizer"/></Arg>
+    </Call>                                                                    
+  </New>                                                                       
+
+  <!-- SSL HTTP connector -->
+  <Call name="addConnector">                               
+    <Arg>                                                                      
+      <New class="org.eclipse.jetty.server.ServerConnector">                   
+        <Arg name="server"><Ref refid="Server" /></Arg>                        
+          <Arg name="factories">                                               
+            <Array type="org.eclipse.jetty.server.ConnectionFactory">          
+              <Item>                                                           
+                <New class="org.eclipse.jetty.server.SslConnectionFactory">    
+                  <Arg name="next">http/1.1</Arg>                              
+                  <Arg name="sslContextFactory"><Ref refid="sslContextFactory"/></Arg>
+                </New>                                                         
+              </Item>                                                          
+              <Item>                                                           
+                <New class="org.eclipse.jetty.server.HttpConnectionFactory">   
+                  <Arg name="config"><Ref refid="sslHttpConfig"/></Arg>        
+                </New>                                                         
+              </Item>                                                          
+            </Array>                                                           
+          </Arg>                                                               
+          <Set name="host"><Property name="jetty.host" /></Set>                
+          <Set name="port"><Property name="jetty.secure.port" default="8443" /></Set>  
+          <Set name="idleTimeout"><Property name="https.timeout" default="30000"/></Set>
+          <Set name="soLingerTime"><Property name="https.soLingerTime" default="-1"/></Set>
+      </New>                                                                 
+    </Arg>                                                                     
+  </Call> 
+
+
+  <!-- HTTP connector -->
+  <Call name="addConnector">
+    <Arg>
+      <New class="org.eclipse.jetty.server.ServerConnector">
+        <Arg name="server">
+          <Ref refid="Server"/>
+        </Arg>
+        <Arg name="factories">
+          <Array type="org.eclipse.jetty.server.ConnectionFactory">
+            <Item>
+              <New class="org.eclipse.jetty.server.HttpConnectionFactory">
+                <Arg name="config"><Ref refid="httpConfig" /></Arg> 
+              </New>
+            </Item>
+          </Array>
+        </Arg>
+        <Set name="host"><Property name="jetty.host"/></Set>
+        <Set name="port"><Property name="jetty.port" default="8080"/></Set>
+        <Set name="idleTimeout"><Property name="http.timeout" default="30000"/></Set>
+        <Set name="soLingerTime"><Property name="http.soLingerTime" default="-1"/></Set>
+      </New>
+    </Arg>
+  </Call>
+
+  <!-- websockets handler setup -->
+  <Set name="handler">
+    <New class="org.eclipse.jetty.server.handler.HandlerList">
+      <Set name="handlers">
+        <Array type="org.eclipse.jetty.server.Handler">
+          <Item>
+            <New class="org.eclipse.jetty.servlet.ServletHandler">
+              <Call id="proxyHolder" name="addServletWithMapping">
+                <Arg>
+                  <Property name="jetty.proxy.servletClass" 
+                    default="org.evergreen_ils.hatch.HatchWebSocketServlet"/>
+                </Arg>
+                <Arg>
+                  <Property name="jetty.proxy.servletMapping" default="/hatch"/>
+                </Arg>
+                <Call name="setInitParameter">
+                  <Arg>maxThreads</Arg>
+                  <Arg>
+                    <Property name="jetty.proxy.maxThreads" default="128"/>
+                  </Arg>
+                </Call>
+                <Call name="setInitParameter">
+                  <Arg>maxConnections</Arg>
+                  <Arg>
+                    <Property name="jetty.proxy.maxConnections" default="256"/>
+                  </Arg>
+                </Call>
+                <Call name="setInitParameter">
+                  <Arg>idleTimeout</Arg>
+                  <Arg>
+                    <Property name="jetty.proxy.idleTimeout" default="60000"/>
+                  </Arg>
+                </Call>
+                <Call name="setInitParameter">
+                  <Arg>timeout</Arg>
+                  <Arg>
+                    <Property name="jetty.proxy.timeout" default="60000"/>
+                  </Arg>
+                </Call>
+              </Call>
+            </New>
+          </Item>
+        </Array>
+      </Set>
+    </New>
+  </Set>
+
+</Configure>

@@ -23,11 +23,35 @@ import java.util.Map;
 public class HatchWebSocketHandler {
 
     private Session session;
-    static String[] trustedDomains;
-    static String trustedDomainsString = null;
-    static boolean trustAllDomains = false;
-    static String profileDirectory;
+    private static String[] trustedDomains;
+    private static boolean trustAllDomains = false;
+    private static String profileDirectory;
     private static final Logger logger = Log.getLogger("WebSocketHandler");
+
+    public static void setTrustedDomains(String[] domains) {
+        trustedDomains = domains;
+
+        if (domains.length > 0 ) {
+
+            if ("*".equals(domains[0])) {
+                logger.info("All domains trusted");
+                trustAllDomains = true;
+
+            } else {
+
+                for(String domain : trustedDomains) {
+                    logger.info("Trusted domain: " + domain);
+                }
+            }
+        } else {
+            logger.warn("No domains are trusted");
+        }
+    }
+
+    public static void setProfileDirectory(String directory) {
+        profileDirectory = directory;
+    }
+
 
     /**
      * config is passed in from our WebSocketServlet container, 
@@ -37,16 +61,6 @@ public class HatchWebSocketHandler {
     public static void configure() {
         logger.info("WebSocketHandler.configure()");
 
-        /*
-        trustedDomainsString = 
-            config.getServletContext().getInitParameter("trustedDomains");
-
-        logger.info("trusted domains " + trustedDomainsString);
-
-        profileDirectory = 
-            config.getServletContext().getInitParameter("profileDirectory");
-            */
-
         // default to ~/.evergreen
         if (profileDirectory == null) {
             String home = System.getProperty("user.home");
@@ -55,24 +69,6 @@ public class HatchWebSocketHandler {
                 logger.info("Unable to set profile directory");
             }
         }   
-
-        if (trustedDomainsString == null) {
-            logger.info("No trusted domains configured");
-
-        } else {
-
-            if (trustedDomainsString.equals("*")) {
-                trustAllDomains = true;
-                logger.info("All domains trusted");
-
-            } else {
-
-                trustedDomains = trustedDomainsString.split(",");
-                for(String domain : trustedDomains) {
-                    logger.info("Trusted domain: " + domain);
-                }
-            }
-        }
     }  
 
     protected boolean verifyOriginDomain() {

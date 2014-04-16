@@ -151,16 +151,17 @@ public class Hatch extends Application {
  
     public static void main(String[] args) throws Exception {
 
-        Server server = new Server(8080);
-        ServletHandler handler = new ServletHandler();
-        server.setHandler(handler);
+        // build a server from our hatch.xml configuration file
+        XmlConfiguration configuration = 
+            new XmlConfiguration(new FileInputStream("hatch.xml"));
 
-        // TODO: config file; ditto profileDirectory, logging, etc.
-        HatchWebSocketHandler.trustedDomainsString = "*"; 
+        Server server = (Server) configuration.configure();
 
-        handler.addServletWithMapping(HatchWebSocketServlet.class, "/hatch");
+        // start our server, but do not join(), since we want to server
+        // to continue running in its own thread
+        server.start(); 
 
-        server.start(); // no join() -- let server thread run in parallel
-        launch(args); // launch the Application
+        // launch the FX Application thread
+        launch(args); 
     }
 }
