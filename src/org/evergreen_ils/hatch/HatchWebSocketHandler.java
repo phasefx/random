@@ -1,3 +1,18 @@
+/* -----------------------------------------------------------------------
+ * Copyright 2014 Equinox Software, Inc.
+ * Bill Erickson <berick@esilibrary.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * -----------------------------------------------------------------------
+ */
 package org.evergreen_ils.hatch;
 
 import java.io.IOException;
@@ -54,7 +69,7 @@ public class HatchWebSocketHandler {
 
 
     /**
-     * config is passed in from our WebSocketServlet container, 
+     * config is passed in from our WebSocketServlet container,
      * hence the public+static.  Possible to access directly?
      */
     //public static void configure(ServletConfig config) {
@@ -68,11 +83,11 @@ public class HatchWebSocketHandler {
             if (profileDirectory == null) {
                 logger.info("Unable to set profile directory");
             }
-        }   
-    }  
+        }
+    }
 
     protected boolean verifyOriginDomain() {
-        logger.info("received connection from IP " + 
+        logger.info("received connection from IP " +
             session.getRemoteAddress().getAddress());
 
         String origin = session.getUpgradeRequest().getHeader("Origin");
@@ -80,7 +95,7 @@ public class HatchWebSocketHandler {
         if (origin == null) {
             logger.warn("No Origin header in request; Dropping connection");
             return false;
-        } 
+        }
 
         logger.info("connection origin is " + origin);
 
@@ -121,6 +136,8 @@ public class HatchWebSocketHandler {
             response.put("error", json);
         }
 
+        logger.info("replying with : " + JSON.toString(response));
+
         try {
             String jsonString = JSON.toString(response);
             if (!success) logger.warn(jsonString);
@@ -150,6 +167,8 @@ public class HatchWebSocketHandler {
         String key = params.get("key");
         String value = params.get("value");
         String mime = params.get("mime");
+
+        logger.info("Received request for action " + action);
 
         // all requets require a message ID
         if (msgid == null || msgid.equals("")) {
@@ -219,12 +238,12 @@ public class HatchWebSocketHandler {
             return;
         }
 
-        if (action.equals("delete")) {
+        if (action.equals("remove")) {
             io = new FileIO(profileDirectory);
             if (io.delete(key)) {
-                reply("Delete of " + key + " successful", msgid);
+                reply("Removal of " + key + " successful", msgid);
             } else {
-                reply("Delete of " + key + " failed", msgid, false);
+                reply("Removal of " + key + " failed", msgid, false);
             }
             return;
         }

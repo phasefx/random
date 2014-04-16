@@ -4,12 +4,11 @@
 <Configure id="Server" class="org.eclipse.jetty.server.Server">
 
   <!--
-  <Set class="org.eclipse.jetty.util.log.StdErrLog" name="level">LEVEL_DEBUG</Set>
-  -->
   <Get id="Logger" class="org.eclipse.jetty.util.log.Log" name="log"/>
   <Ref id="Logger">
     <Set name="debugEnabled">true</Set>
   </Ref>
+  -->
 
   <Set class="org.evergreen_ils.hatch.HatchWebSocketHandler" name="trustedDomains">
     <Array type="String">

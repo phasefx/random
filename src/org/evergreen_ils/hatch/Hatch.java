@@ -1,3 +1,18 @@
+/* -----------------------------------------------------------------------
+ * Copyright 2014 Equinox Software, Inc.
+ * Bill Erickson <berick@esilibrary.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * -----------------------------------------------------------------------
+ */
 package org.evergreen_ils.hatch;
 
 import org.eclipse.jetty.util.log.Log;
@@ -35,14 +50,14 @@ import org.eclipse.jetty.util.ajax.JSON;
 import java.util.Map;
 
 import java.io.FileInputStream;
- 
+
 public class Hatch extends Application {
 
     private BrowserView browser;
     private Stage primaryStage;
     static final Logger logger = Log.getLogger("Hatch");
 
-    private static LinkedBlockingQueue<Map> requestQueue = 
+    private static LinkedBlockingQueue<Map> requestQueue =
         new LinkedBlockingQueue<Map>();
 
     /**
@@ -58,7 +73,7 @@ public class Hatch extends Application {
 
     /**
      * Service task which listens for inbound messages from the
-     * servlet.  
+     * servlet.
      *
      * The code blocks on the concurrent queue, so it must be
      * run in a separate thread to avoid locking the main FX thread.
@@ -71,7 +86,7 @@ public class Hatch extends Application {
                         try {
                             // take() blocks until a message is available
                             return requestQueue.take();
-                        } catch (InterruptedException e) { 
+                        } catch (InterruptedException e) {
                             // interrupted, go back and listen
                             continue;
                         }
@@ -85,7 +100,7 @@ public class Hatch extends Application {
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
-        logger.debug("start()"); 
+        logger.debug("start()");
         startMsgTask();
     }
 
@@ -95,7 +110,7 @@ public class Hatch extends Application {
     }
 
     /**
-     * Build a browser view from the print content, tell the 
+     * Build a browser view from the print content, tell the
      * browser to print itself.
      */
     private void handlePrint(Map<String,String> params) {
@@ -135,7 +150,7 @@ public class Hatch extends Application {
 
             @Override
             public void handle(WorkerStateEvent t) {
-                Map<String,String> message = 
+                Map<String,String> message =
                     (Map<String,String>) t.getSource().getValue();
 
                 if (message != null) handlePrint(message);
@@ -148,20 +163,20 @@ public class Hatch extends Application {
 
         service.start();
     }
- 
+
     public static void main(String[] args) throws Exception {
 
         // build a server from our hatch.xml configuration file
-        XmlConfiguration configuration = 
+        XmlConfiguration configuration =
             new XmlConfiguration(new FileInputStream("hatch.xml"));
 
         Server server = (Server) configuration.configure();
 
         // start our server, but do not join(), since we want to server
         // to continue running in its own thread
-        server.start(); 
+        server.start();
 
         // launch the FX Application thread
-        launch(args); 
+        launch(args);
     }
 }
