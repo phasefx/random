@@ -26,10 +26,13 @@ import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import javax.print.attribute.Attribute;
 import javax.print.attribute.AttributeSet;
+import javax.print.attribute.standard.Media;
+import javax.print.attribute.standard.OrientationRequested;
 
 // data structures
 import java.util.Map;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 
@@ -91,6 +94,26 @@ public class PrintManager {
 
             if (service.getName().equals(defaultPrinter))
                 printer.put("is-default", new Boolean(true));
+
+            // collect information about the printer attributes we care about
+            Class[] attrClasses = {
+                Media.class, 
+                //OrientationRequested.class
+            };
+
+            for (Class c : attrClasses) {
+                Attribute[] attrs = (Attribute[])
+                    service.getSupportedAttributeValues(c, null, null);
+
+                if (attrs.length > 0) {
+                    ArrayList<String> values = new ArrayList<String>(attrs.length);
+                    for (Attribute a : attrs) {
+                        String s = a.toString();
+                        if (!values.contains(s)) values.add(s);
+                    }
+                    printer.put(attrs[0].getName(), values);
+                }
+            }
 
             AttributeSet attributes = service.getAttributes();
             for (Attribute a : attributes.toArray()) {

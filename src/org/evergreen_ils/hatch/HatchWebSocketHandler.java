@@ -131,7 +131,7 @@ public class HatchWebSocketHandler {
         Map<String, Object> response = new HashMap<String, Object>();
         response.put("msgid", msgid);
         if (success) {
-            response.put("success", json);
+            response.put("content", json);
         } else {
             response.put("error", json);
         }
@@ -218,22 +218,14 @@ public class HatchWebSocketHandler {
         }
 
         if (action.equals("get")) {
-            io = new FileIO(profileDirectory);
-            BufferedReader reader = io.get(key);
-            if (reader != null) {
-                String line;
-                try {
-                    while ( (line = reader.readLine()) != null) {
-                        // relay lines of text to the caller as we read them
-                        // assume the text content is JSON and return it
-                        // un-JSON-ified.
-                        reply(line, msgid);
-                    }
-                } catch (IOException e) {
-                    logger.warn(e);
-                }
+            String val = new FileIO(profileDirectory).get(key);
+            // set() calls store bare JSON. We must pass an 
+            // Object to reply so that it may be embedded into
+            // a larger JSON response object, hence the JSON.parse().
+            if (val == null) {
+                reply(null, msgid);
             } else {
-                reply("Error accessing property " + key, msgid, false);
+                reply(JSON.parse(val), msgid);
             }
             return;
         }

@@ -97,20 +97,28 @@ public class FileIO {
         return true;
     }
 
-    public BufferedReader get(String key) {
+    public String get(String key) {
         logger.info("get => " + key);
         File file = getFile(key);
         if (!file.exists()) return null;
 
-        StringBuffer sbuf = new StringBuffer();
+        String line;
+        StringBuffer buf = new StringBuffer();
+
         try {
-            return new BufferedReader(
+            BufferedReader reader = new BufferedReader(
                 new FileReader(file.getAbsoluteFile()));
+
+            while ( (line = reader.readLine()) != null) {
+                buf.append(line);
+            }
         } catch (IOException e) {
             logger.warn("Error reading key: " + key);
             logger.warn(e);
             return null;
         }
+
+        return buf.toString();
     }
 
     public boolean delete(String key) {
