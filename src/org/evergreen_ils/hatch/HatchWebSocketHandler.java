@@ -122,11 +122,11 @@ public class HatchWebSocketHandler {
         this.session = null;
     }
 
-    private void reply(Object json, String msgid) {
+    protected void reply(Object json, String msgid) {
         reply(json, msgid, true);
     }
 
-    private void reply(Object json, String msgid, boolean success) {
+    protected void reply(Object json, String msgid, boolean success) {
 
         Map<String, Object> response = new HashMap<String, Object>();
         response.put("msgid", msgid);
@@ -153,20 +153,20 @@ public class HatchWebSocketHandler {
         if (session == null || !session.isOpen()) return;
         logger.info("onMessage() " + message);
 
-        HashMap<String,String> params = null;
+        HashMap<String,Object> params = null;
 
         try {
-            params = (HashMap<String,String>) JSON.parse(message);
+            params = (HashMap<String,Object>) JSON.parse(message);
         } catch (ClassCastException e) {
             reply("Invalid WebSockets JSON message " + message, "", false);
         }
 
         FileIO io;
-        String msgid = params.get("msgid");
-        String action = params.get("action");
-        String key = params.get("key");
-        String value = params.get("value");
-        String mime = params.get("mime");
+        String msgid = (String) params.get("msgid");
+        String action = (String) params.get("action");
+        String key = (String) params.get("key");
+        String value = (String) params.get("value");
+        String mime = (String) params.get("mime");
 
         logger.info("Received request for action " + action);
 
@@ -194,20 +194,27 @@ public class HatchWebSocketHandler {
         }
 
         if (action.equals("printers")) {
-            List printers = new PrintManager().getPrinters();
+            List printers = new PrintManager().getPrintersAsMaps();
             reply(printers, msgid);
             return;
         }
 
         if (action.equals("print")) {
-            // TODO: validate the print target first so we can respond
-            // with an error if the requested printer / attributes are
-            // not supported.  Printing occurs in a separate thread,
-            // so for now just assume it succeeded.  Maybe later add
-            // a response queue and see if this handler is capable of
-            // responding from an alternate thread.
+            // pass ourselves off to the print handler so it can reply
+            // for us after printing has completed.
+            params.put("socket", this);
             Hatch.enqueueMessage(params);
-            reply("print succeeded", msgid);
+            return;
+        }
+
+        if (action.equals("print-config")) {
+            // pass ourselves off to the print handler so it can reply
+            // for us after printing has completed.
+            String printer = (String) params.get("printer");
+            reply(
+                new PrintManager().configurePrinter(printer),
+                msgid
+            );
             return;
         }
 

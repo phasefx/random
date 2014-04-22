@@ -22,10 +22,17 @@ import org.eclipse.jetty.util.log.Logger;
 // printing
 import javafx.print.*;
 import javafx.scene.web.WebEngine;
+import javafx.collections.ObservableSet;
+import javafx.collections.SetChangeListener;
+
+import java.util.Set;
+import java.util.LinkedHashSet;
+
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import javax.print.attribute.Attribute;
 import javax.print.attribute.AttributeSet;
+import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.Media;
 import javax.print.attribute.standard.OrientationRequested;
 
@@ -40,15 +47,200 @@ public class PrintManager {
 
     static final Logger logger = Log.getLogger("PrintManager");
 
-    public void print(WebEngine engine) {
-        debugPrintService(null); // testing
+    public Attribute getAttribute(
+        PrintService service, Class attrClass, String name) {
 
-        Printer printer = Printer.getDefaultPrinter();
+        Attribute[] attrs = (Attribute[])
+            service.getSupportedAttributeValues(attrClass, null, null);
+
+        for (Attribute a : attrs) {
+            if (a.toString().equals(name)) 
+                return a;
+        }
+        return null;
+    }
+
+    public Map<String,Object> configurePrinter(String name) {
+        Printer printer = getPrinterByName(name);
+        PrinterJob job = PrinterJob.createPrinterJob(printer);
+        job.showPrintDialog(null);
+        Map<String,Object> settings = printerSettingsToMap(job);
+        job.endJob();
+        return settings;
+    }
+
+    public void print(WebEngine engine, Map<String,Object>params) {
+        
+        //debugPrintService(null); // testing
+
+        /*
+        Map<String,String> attrs = 
+            (Map<String,String>) params.get("attributes");
+
+        String printerName = (String) attrs.get("printer-name");
+        PrintService service = getPrintServiceByName(printerName);
+
+        if (service == null) {
+            logger.warn("printer '" + printerName + "' not found!");
+            debugPrintService();
+            return;
+        }
+
         PrinterJob job = PrinterJob.createPrinterJob();
+        Attribute mediaAttr = getAttribute(
+            service, Media.class, (String) attrs.get("media"));
+
+        Attribute orientationAttr = getAttribute(
+            service, RequestedOrientation.class, 
+            (String) attrs.get("orientation"));
+
+        PrintRequestAttributeSet attrSet = new PrintRequestAttributeSet();
+        if (mediaAttr != null) attrSet.add(mediaAttr);
+        if (orientationAttr != null) attrSet.add(orientationAttr);
+        */
+
+
+        //getPrinterByName(); ...
+        Printer printer = Printer.getDefaultPrinter(); // TODO
+        PageLayout firstLayout = printer.createPageLayout(
+            Paper.NA_LETTER,
+            PageOrientation.LANDSCAPE,
+            0.1 * 72, 0.2 * 72, 0.3 * 72, 0.4 * 72 
+        );
+
+        logger.info("orig job page layout " + firstLayout.toString());
+        PrinterJob job = PrinterJob.createPrinterJob(printer);
+
+        job.getJobSettings().setPageLayout(firstLayout);
         if (!job.showPrintDialog(null)) return; // print canceled by user
+
+        Map<String,Object> settings = printerSettingsToMap(job);
         engine.print(job);
         job.endJob();
+
+        HatchWebSocketHandler socket = 
+            (HatchWebSocketHandler) params.get("socket");
+
+        socket.reply(settings, (String) params.get("msgid"));
     }
+
+    protected Map<String,Object> printerSettingsToMap(PrinterJob job) {
+        Map<String,Object> settings = new HashMap<String,Object>();
+        JobSettings jobSettings = job.getJobSettings();
+
+        settings.put(
+            jobSettings.collationProperty().getName(),
+            jobSettings.collationProperty().getValue()
+        );
+        settings.put(
+            jobSettings.copiesProperty().getName(),
+            jobSettings.copiesProperty().getValue()
+        );
+        settings.put(
+            jobSettings.paperSourceProperty().getName(),
+            jobSettings.paperSourceProperty().getValue()
+        );
+        settings.put(
+            jobSettings.printColorProperty().getName(),
+            jobSettings.printColorProperty().getValue()
+        );
+        settings.put(
+            jobSettings.printQualityProperty().getName(),
+            jobSettings.printQualityProperty().getValue()
+        );
+        settings.put(
+            jobSettings.printSidesProperty().getName(),
+            jobSettings.printSidesProperty().getValue()
+        );
+
+        // nested properties...
+        
+        // page layout --------------
+        PageLayout layout = jobSettings.getPageLayout();
+        Map<String,Object> layoutMap = new HashMap<String,Object>();
+        layoutMap.put("bottomMargin", layout.getBottomMargin());
+        layoutMap.put("leftMargin", layout.getLeftMargin());
+        layoutMap.put("topMargin", layout.getTopMargin());
+        layoutMap.put("rightMargin", layout.getRightMargin());
+        layoutMap.put("pageOrientation", layout.getPageOrientation().toString());
+        layoutMap.put("printableHeight", layout.getPrintableHeight());
+        layoutMap.put("printableWidth", layout.getPrintableWidth());
+
+        Paper paper = layout.getPaper();
+        Map<String,Object> paperMap = new HashMap<String,Object>();
+        paperMap.put("height", paper.getHeight());
+        paperMap.put("width", paper.getWidth());
+        paperMap.put("name", paper.getName());
+        layoutMap.put("paper", paperMap);
+
+        settings.put("pageLayout", layoutMap);
+
+        // page ranges --------------
+        PageRange[] ranges = jobSettings.getPageRanges();
+        if (ranges != null) {
+            List<Map<String,Integer>> pageRanges = 
+                new LinkedList<Map<String,Integer>>();
+
+            for (PageRange range : ranges) {
+                Map<String,Integer> oneRange = new HashMap<String,Integer>();
+                oneRange.put("startPage", range.getStartPage());
+                oneRange.put("startPage", range.getEndPage());
+                pageRanges.add(oneRange);
+            }
+            settings.put("pageRanges", pageRanges);
+        }
+
+
+        // resolution --------------
+        PrintResolution resolution = jobSettings.getPrintResolution();
+        Map<String,Integer> resolutionMap = new HashMap<String,Integer>();
+        resolutionMap.put("feedResolution", resolution.getFeedResolution());
+        resolutionMap.put("crossFeedResolution", resolution.getCrossFeedResolution());
+        settings.put("printResolution", resolutionMap);
+
+        logger.info("compiled printer properties: " + settings.toString());
+        return settings;
+    };
+
+    protected Printer[] getPrinters() {
+        ObservableSet<Printer> printerObserver = Printer.getAllPrinters();
+
+        if (printerObserver == null) return new Printer[0];
+
+        return (Printer[]) printerObserver.toArray(new Printer[0]);
+    }
+
+    protected List<Map<String,Object>> getPrintersAsMaps() {
+        Printer[] printers = getPrinters();
+
+        List<Map<String,Object>> printerMaps = 
+            new LinkedList<Map<String,Object>>();
+
+        Printer defaultPrinter = Printer.getDefaultPrinter();
+
+        for (Printer printer : printers) {
+            HashMap<String, Object> printerMap = new HashMap<String, Object>();
+            printerMaps.add(printerMap);
+            printerMap.put("name", printer.getName());
+            if (printer.getName().equals(defaultPrinter.getName())) {
+                printerMap.put("is-default", new Boolean(true));
+            }
+            logger.info("found printer " + printer.getName());            
+        }
+
+        return printerMaps;
+    }
+
+
+    protected Printer getPrinterByName(String name) {
+        Printer[] printers = getPrinters();
+        for (Printer printer : printers) {
+            if (printer.getName().equals(name))
+                return printer;
+        }
+        return null;
+    }
+
 
     private void debugPrintService(PrintService printer) {
 
@@ -78,6 +270,17 @@ public class PrintManager {
         }
     }
 
+    public PrintService getPrintServiceByName(String name) {
+        PrintService[] printServices =
+            PrintServiceLookup.lookupPrintServices(null, null);
+        for (PrintService service : printServices) {
+            if (service.getName().equals(name))
+                return service;
+        }
+        return null;
+    }
+
+    /*
     public List<HashMap> getPrinters() {
 
         List<HashMap> printers = new LinkedList<HashMap>();
@@ -125,5 +328,6 @@ public class PrintManager {
 
         return printers;
     }
+    */
 }
 

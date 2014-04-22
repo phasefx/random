@@ -78,10 +78,10 @@ public class Hatch extends Application {
      * The code blocks on the concurrent queue, so it must be
      * run in a separate thread to avoid locking the main FX thread.
      */
-    private static class MsgListenService extends Service<Map<String,String>> {
-        protected Task<Map<String,String>> createTask() {
-            return new Task<Map<String,String>>() {
-                protected Map<String,String> call() {
+    private static class MsgListenService extends Service<Map<String,Object>> {
+        protected Task<Map<String,Object>> createTask() {
+            return new Task<Map<String,Object>>() {
+                protected Map<String,Object> call() {
                     while (true) {
                         try {
                             // take() blocks until a message is available
@@ -104,7 +104,7 @@ public class Hatch extends Application {
         startMsgTask();
     }
 
-    public static void enqueueMessage(Map<String,String> params) {
+    public static void enqueueMessage(Map<String,Object> params) {
         logger.debug("queueing print message");
         requestQueue.offer(params);
     }
@@ -113,10 +113,9 @@ public class Hatch extends Application {
      * Build a browser view from the print content, tell the
      * browser to print itself.
      */
-    private void handlePrint(Map<String,String> params) {
-        String printer = params.get("printer");
-        String content = params.get("content");
-        String contentType = params.get("contentType");
+    private void handlePrint(Map<String,Object> params) {
+        String content = (String) params.get("content");
+        String contentType = (String) params.get("contentType");
 
         browser = new BrowserView();
         Scene scene = new Scene(browser, 640, 480); // TODO: printer dimensions
@@ -127,7 +126,7 @@ public class Hatch extends Application {
             .addListener( (ChangeListener) (obsValue, oldState, newState) -> {
                 if (newState == State.SUCCEEDED) {
                     logger.debug("browser page loaded");
-                    new PrintManager().print(browser.webEngine);
+                    new PrintManager().print(browser.webEngine, params);
                 }
             });
 
@@ -150,8 +149,8 @@ public class Hatch extends Application {
 
             @Override
             public void handle(WorkerStateEvent t) {
-                Map<String,String> message =
-                    (Map<String,String>) t.getSource().getValue();
+                Map<String,Object> message =
+                    (Map<String,Object>) t.getSource().getValue();
 
                 if (message != null) handlePrint(message);
 
