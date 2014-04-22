@@ -122,11 +122,11 @@ public class HatchWebSocketHandler {
         this.session = null;
     }
 
-    protected void reply(Object json, String msgid) {
+    protected void reply(Object json, Long msgid) {
         reply(json, msgid, true);
     }
 
-    protected void reply(Object json, String msgid, boolean success) {
+    protected void reply(Object json, Long msgid, boolean success) {
 
         Map<String, Object> response = new HashMap<String, Object>();
         response.put("msgid", msgid);
@@ -158,11 +158,12 @@ public class HatchWebSocketHandler {
         try {
             params = (HashMap<String,Object>) JSON.parse(message);
         } catch (ClassCastException e) {
-            reply("Invalid WebSockets JSON message " + message, "", false);
+            reply("Invalid WebSockets JSON message " + message, 
+                new Long(-1), false);
         }
 
         FileIO io;
-        String msgid = (String) params.get("msgid");
+        Long msgid = (Long) params.get("msgid");
         String action = (String) params.get("action");
         String key = (String) params.get("key");
         String value = (String) params.get("value");
@@ -171,7 +172,7 @@ public class HatchWebSocketHandler {
         logger.info("Received request for action " + action);
 
         // all requets require a message ID
-        if (msgid == null || msgid.equals("")) {
+        if (msgid == null) {
             reply("No msgid specified in request", msgid, false);
             return;
         }

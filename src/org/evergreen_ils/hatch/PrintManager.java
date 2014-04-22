@@ -58,18 +58,70 @@ public class PrintManager {
             return null;
         }
 
+        PageLayout layout = buildPageLayout(config, printer);
         PrinterJob job = PrinterJob.createPrinterJob(printer);
+
+        if (layout != null) job.getJobSettings().setPageLayout(layout);
 
         // apply any provided settings to the job
         applySettingsToJob(config, job);
 
-        job.showPrintDialog(null);
+        try {
+            job.showPrintDialog(null);
+        } catch (IllegalArgumentException e) {
+            logger.warn(e);
+            return null;
+        }
 
-        // extract any modifications to the settings
-        Map<String,Object> settings = extractSettingsFromJob(job);
+        // no printing needed
+        job.endJob(); 
 
-        job.endJob(); // no printing needed
-        return settings;
+        // extract modifications to the settings applied within the dialog
+        return extractSettingsFromJob(job);
+    }
+
+    protected PageLayout buildPageLayout(
+            Map<String,Object> settings, Printer printer) {
+
+        // modify the default page layout with our settings
+        Map<String,Object> layoutMap = 
+            (Map<String,Object>) settings.get("pageLayout");
+
+        if (layoutMap == null) {
+            // Start with a sane default.
+            // The Java default is wonky
+            return printer.createPageLayout(
+                Paper.NA_LETTER,
+                PageOrientation.PORTRAIT,
+                Printer.MarginType.DEFAULT
+            );
+        }
+
+        PrinterAttributes printerAttrs = printer.getPrinterAttributes();
+
+        // find the paper by name
+        Paper paper = null;
+        String paperName = (String) layoutMap.get("paper");
+        Set<Paper> papers = printerAttrs.getSupportedPapers();
+        for (Paper source : papers) {
+            if (source.getName().equals(paperName)) {
+                logger.info("Found matching paper for " + paperName);
+                paper = source;
+                break;
+            }
+        }
+
+        if (paper == null) 
+            paper = printerAttrs.getDefaultPaper();
+
+        return printer.createPageLayout(
+            paper,
+            PageOrientation.valueOf((String) layoutMap.get("pageOrientation")),
+            ((Number) layoutMap.get("leftMargin")).doubleValue(),
+            ((Number) layoutMap.get("rightMargin")).doubleValue(),
+            ((Number) layoutMap.get("topMargin")).doubleValue(),
+            ((Number) layoutMap.get("bottomMargin")).doubleValue()
+        );
     }
 
     // applies the settings in settings to the provided print job
@@ -77,6 +129,9 @@ public class PrintManager {
             Map<String,Object> settings, PrinterJob job) {
 
         JobSettings jobSettings = job.getJobSettings();
+
+        PrinterAttributes printerAttrs = 
+            job.getPrinter().getPrinterAttributes();
 
         String collation = (String) settings.get("collation");
         if (collation != null) 
@@ -88,14 +143,24 @@ public class PrintManager {
             );
         }
 
-        // there does not appear to be any way to create a PaperSource
-        // directly from its name (via public method), so instead we
-        // manually find the matching paper source
+        if (settings.get("printColor") != null) {
+            jobSettings.setPrintColor(
+                PrintColor.valueOf((String) settings.get("printColor")));
+        }
+
+        if (settings.get("printQuality") != null) {
+            jobSettings.setPrintQuality(
+                PrintQuality.valueOf((String) settings.get("printQuality")));
+        }
+
+        if (settings.get("printSides") != null) {
+            jobSettings.setPrintSides(
+                PrintSides.valueOf((String) settings.get("printSides")));
+        }
+
+        // find the paperSource by name
         if (settings.get("paperSource") != null) {
             String sourceName = (String) settings.get("paperSource");
-
-            PrinterAttributes printerAttrs = 
-                job.getPrinter().getPrinterAttributes();
 
             Set<PaperSource> paperSources = 
                 printerAttrs.getSupportedPaperSources();
@@ -112,41 +177,6 @@ public class PrintManager {
         }
 
         /*
-        settings.put(
-            jobSettings.printColorProperty().getName(),
-            jobSettings.printColorProperty().getValue()
-        );
-        settings.put(
-            jobSettings.printQualityProperty().getName(),
-            jobSettings.printQualityProperty().getValue()
-        );
-        settings.put(
-            jobSettings.printSidesProperty().getName(),
-            jobSettings.printSidesProperty().getValue()
-        );
-
-        // nested properties...
-        
-        // page layout --------------
-        PageLayout layout = jobSettings.getPageLayout();
-        Map<String,Object> layoutMap = new HashMap<String,Object>();
-        layoutMap.put("bottomMargin", layout.getBottomMargin());
-        layoutMap.put("leftMargin", layout.getLeftMargin());
-        layoutMap.put("topMargin", layout.getTopMargin());
-        layoutMap.put("rightMargin", layout.getRightMargin());
-        layoutMap.put("pageOrientation", layout.getPageOrientation().toString());
-        layoutMap.put("printableHeight", layout.getPrintableHeight());
-        layoutMap.put("printableWidth", layout.getPrintableWidth());
-
-        Paper paper = layout.getPaper();
-        Map<String,Object> paperMap = new HashMap<String,Object>();
-        paperMap.put("height", paper.getHeight());
-        paperMap.put("width", paper.getWidth());
-        paperMap.put("name", paper.getName());
-        layoutMap.put("paper", paperMap);
-
-        settings.put("pageLayout", layoutMap);
-
         // page ranges --------------
         PageRange[] ranges = jobSettings.getPageRanges();
         if (ranges != null) {
@@ -228,7 +258,7 @@ public class PrintManager {
         HatchWebSocketHandler socket = 
             (HatchWebSocketHandler) params.get("socket");
 
-        socket.reply(settings, (String) params.get("msgid"));
+        socket.reply(settings, (Long) params.get("msgid"));
     }
 
     protected Map<String,Object> extractSettingsFromJob(PrinterJob job) {
@@ -272,13 +302,7 @@ public class PrintManager {
         layoutMap.put("pageOrientation", layout.getPageOrientation().toString());
         layoutMap.put("printableHeight", layout.getPrintableHeight());
         layoutMap.put("printableWidth", layout.getPrintableWidth());
-
-        Paper paper = layout.getPaper();
-        Map<String,Object> paperMap = new HashMap<String,Object>();
-        paperMap.put("height", paper.getHeight());
-        paperMap.put("width", paper.getWidth());
-        paperMap.put("name", paper.getName());
-        layoutMap.put("paper", paperMap);
+        layoutMap.put("paper", layout.getPaper().getName());
 
         settings.put("pageLayout", layoutMap);
 
@@ -291,7 +315,7 @@ public class PrintManager {
             for (PageRange range : ranges) {
                 Map<String,Integer> oneRange = new HashMap<String,Integer>();
                 oneRange.put("startPage", range.getStartPage());
-                oneRange.put("startPage", range.getEndPage());
+                oneRange.put("endPage", range.getEndPage());
                 pageRanges.add(oneRange);
             }
             settings.put("pageRanges", pageRanges);
@@ -307,7 +331,7 @@ public class PrintManager {
 
         logger.info("compiled printer properties: " + settings.toString());
         return settings;
-    };
+    }
 
     protected Printer[] getPrinters() {
         ObservableSet<Printer> printerObserver = Printer.getAllPrinters();
