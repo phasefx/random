@@ -208,11 +208,8 @@ public class HatchWebSocketHandler {
         }
 
         if (action.equals("print-config")) {
-            // pass ourselves off to the print handler so it can reply
-            // for us after printing has completed.
-            String printer = (String) params.get("printer");
             reply(
-                new PrintManager().configurePrinter(printer),
+                new PrintManager().configurePrinter(params),
                 msgid
             );
             return;

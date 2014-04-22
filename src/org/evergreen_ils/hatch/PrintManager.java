@@ -47,27 +47,134 @@ public class PrintManager {
 
     static final Logger logger = Log.getLogger("PrintManager");
 
-    public Attribute getAttribute(
-        PrintService service, Class attrClass, String name) {
+    public Map<String,Object> configurePrinter(Map<String,Object> params) {
+        Map<String,Object> config = (Map<String,Object>) params.get("config");
 
-        Attribute[] attrs = (Attribute[])
-            service.getSupportedAttributeValues(attrClass, null, null);
-
-        for (Attribute a : attrs) {
-            if (a.toString().equals(name)) 
-                return a;
-        }
-        return null;
-    }
-
-    public Map<String,Object> configurePrinter(String name) {
+        String name = (String) config.get("printer");
         Printer printer = getPrinterByName(name);
+
+        if (printer == null) {
+            logger.warn("No such printer: " + name);
+            return null;
+        }
+
         PrinterJob job = PrinterJob.createPrinterJob(printer);
+
+        // apply any provided settings to the job
+        applySettingsToJob(config, job);
+
         job.showPrintDialog(null);
-        Map<String,Object> settings = printerSettingsToMap(job);
-        job.endJob();
+
+        // extract any modifications to the settings
+        Map<String,Object> settings = extractSettingsFromJob(job);
+
+        job.endJob(); // no printing needed
         return settings;
     }
+
+    // applies the settings in settings to the provided print job
+    protected void applySettingsToJob(
+            Map<String,Object> settings, PrinterJob job) {
+
+        JobSettings jobSettings = job.getJobSettings();
+
+        String collation = (String) settings.get("collation");
+        if (collation != null) 
+            jobSettings.setCollation(Collation.valueOf(collation));
+
+        if (settings.get("copies") != null) {
+            jobSettings.setCopies(
+                ((Long) settings.get("copies")).intValue()
+            );
+        }
+
+        // there does not appear to be any way to create a PaperSource
+        // directly from its name (via public method), so instead we
+        // manually find the matching paper source
+        if (settings.get("paperSource") != null) {
+            String sourceName = (String) settings.get("paperSource");
+
+            PrinterAttributes printerAttrs = 
+                job.getPrinter().getPrinterAttributes();
+
+            Set<PaperSource> paperSources = 
+                printerAttrs.getSupportedPaperSources();
+
+            // note: "Automatic" appears to be a virtual source,
+            // meaning no source.. meaning let the printer decide.
+            for (PaperSource source : paperSources) {
+                if (source.getName().equals(sourceName)) {
+                    logger.info("matched paper source for " + sourceName);
+                    jobSettings.setPaperSource(source);
+                    break;
+                }
+            }
+        }
+
+        /*
+        settings.put(
+            jobSettings.printColorProperty().getName(),
+            jobSettings.printColorProperty().getValue()
+        );
+        settings.put(
+            jobSettings.printQualityProperty().getName(),
+            jobSettings.printQualityProperty().getValue()
+        );
+        settings.put(
+            jobSettings.printSidesProperty().getName(),
+            jobSettings.printSidesProperty().getValue()
+        );
+
+        // nested properties...
+        
+        // page layout --------------
+        PageLayout layout = jobSettings.getPageLayout();
+        Map<String,Object> layoutMap = new HashMap<String,Object>();
+        layoutMap.put("bottomMargin", layout.getBottomMargin());
+        layoutMap.put("leftMargin", layout.getLeftMargin());
+        layoutMap.put("topMargin", layout.getTopMargin());
+        layoutMap.put("rightMargin", layout.getRightMargin());
+        layoutMap.put("pageOrientation", layout.getPageOrientation().toString());
+        layoutMap.put("printableHeight", layout.getPrintableHeight());
+        layoutMap.put("printableWidth", layout.getPrintableWidth());
+
+        Paper paper = layout.getPaper();
+        Map<String,Object> paperMap = new HashMap<String,Object>();
+        paperMap.put("height", paper.getHeight());
+        paperMap.put("width", paper.getWidth());
+        paperMap.put("name", paper.getName());
+        layoutMap.put("paper", paperMap);
+
+        settings.put("pageLayout", layoutMap);
+
+        // page ranges --------------
+        PageRange[] ranges = jobSettings.getPageRanges();
+        if (ranges != null) {
+            List<Map<String,Integer>> pageRanges = 
+                new LinkedList<Map<String,Integer>>();
+
+            for (PageRange range : ranges) {
+                Map<String,Integer> oneRange = new HashMap<String,Integer>();
+                oneRange.put("startPage", range.getStartPage());
+                oneRange.put("startPage", range.getEndPage());
+                pageRanges.add(oneRange);
+            }
+            settings.put("pageRanges", pageRanges);
+        }
+
+
+        // resolution --------------
+        PrintResolution resolution = jobSettings.getPrintResolution();
+        Map<String,Integer> resolutionMap = new HashMap<String,Integer>();
+        resolutionMap.put("feedResolution", resolution.getFeedResolution());
+        resolutionMap.put("crossFeedResolution", resolution.getCrossFeedResolution());
+        settings.put("printResolution", resolutionMap);
+
+        logger.info("compiled printer properties: " + settings.toString());
+        return settings;
+        */
+    };
+
 
     public void print(WebEngine engine, Map<String,Object>params) {
         
@@ -114,7 +221,7 @@ public class PrintManager {
         job.getJobSettings().setPageLayout(firstLayout);
         if (!job.showPrintDialog(null)) return; // print canceled by user
 
-        Map<String,Object> settings = printerSettingsToMap(job);
+        Map<String,Object> settings = extractSettingsFromJob(job);
         engine.print(job);
         job.endJob();
 
@@ -124,7 +231,7 @@ public class PrintManager {
         socket.reply(settings, (String) params.get("msgid"));
     }
 
-    protected Map<String,Object> printerSettingsToMap(PrinterJob job) {
+    protected Map<String,Object> extractSettingsFromJob(PrinterJob job) {
         Map<String,Object> settings = new HashMap<String,Object>();
         JobSettings jobSettings = job.getJobSettings();
 
@@ -137,8 +244,8 @@ public class PrintManager {
             jobSettings.copiesProperty().getValue()
         );
         settings.put(
-            jobSettings.paperSourceProperty().getName(),
-            jobSettings.paperSourceProperty().getValue()
+            "paperSource", 
+            jobSettings.getPaperSource().getName()
         );
         settings.put(
             jobSettings.printColorProperty().getName(),
