@@ -65,6 +65,37 @@ public class PrintManager {
         return extractSettingsFromJob(job);
     }
 
+    public void print(WebEngine engine, Map<String,Object>params) {
+
+        Long msgid = (Long) params.get("msgid");
+        Boolean showDialog = (Boolean) params.get("showDialog");
+
+        Map<String,Object> settings = 
+            (Map<String,Object>) params.get("config");
+
+        HatchWebSocketHandler socket = 
+            (HatchWebSocketHandler) params.get("socket");
+
+        PrinterJob job = null;
+        try {
+            job = buildPrinterJob(settings);
+        } catch(IllegalArgumentException e) {
+            socket.reply(e.toString(), msgid, false);
+        }
+
+        if (showDialog != null && showDialog.booleanValue()) {
+            if (!job.showPrintDialog(null)) {
+                // job canceled by user
+                socket.reply("Print job canceled", msgid);
+            }
+        }
+
+        engine.print(job);
+        job.endJob();
+
+        socket.reply("Print job succeeded", msgid);
+    }
+
     public PrinterJob buildPrinterJob(
         Map<String,Object> settings) throws IllegalArgumentException {
 
@@ -195,62 +226,6 @@ public class PrintManager {
 
             jobSettings.setPageRanges(builtRanges.toArray(new PageRange[0]));
         }
-    }
-
-
-    public void print(WebEngine engine, Map<String,Object>params) {
-        
-        //debugPrintService(null); // testing
-
-        /*
-        Map<String,String> attrs = 
-            (Map<String,String>) params.get("attributes");
-
-        String printerName = (String) attrs.get("printer-name");
-        PrintService service = getPrintServiceByName(printerName);
-
-        if (service == null) {
-            logger.warn("printer '" + printerName + "' not found!");
-            debugPrintService();
-            return;
-        }
-
-        PrinterJob job = PrinterJob.createPrinterJob();
-        Attribute mediaAttr = getAttribute(
-            service, Media.class, (String) attrs.get("media"));
-
-        Attribute orientationAttr = getAttribute(
-            service, RequestedOrientation.class, 
-            (String) attrs.get("orientation"));
-
-        PrintRequestAttributeSet attrSet = new PrintRequestAttributeSet();
-        if (mediaAttr != null) attrSet.add(mediaAttr);
-        if (orientationAttr != null) attrSet.add(orientationAttr);
-        */
-
-
-        //getPrinterByName(); ...
-        Printer printer = Printer.getDefaultPrinter(); // TODO
-        PageLayout firstLayout = printer.createPageLayout(
-            Paper.NA_LETTER,
-            PageOrientation.LANDSCAPE,
-            0.1 * 72, 0.2 * 72, 0.3 * 72, 0.4 * 72 
-        );
-
-        logger.info("orig job page layout " + firstLayout.toString());
-        PrinterJob job = PrinterJob.createPrinterJob(printer);
-
-        job.getJobSettings().setPageLayout(firstLayout);
-        if (!job.showPrintDialog(null)) return; // print canceled by user
-
-        Map<String,Object> settings = extractSettingsFromJob(job);
-        engine.print(job);
-        job.endJob();
-
-        HatchWebSocketHandler socket = 
-            (HatchWebSocketHandler) params.get("socket");
-
-        socket.reply(settings, (Long) params.get("msgid"));
     }
 
     protected Map<String,Object> extractSettingsFromJob(PrinterJob job) {
