@@ -101,12 +101,17 @@ public class PrintManager {
         }
 
         if (showDialog != null && showDialog.booleanValue()) {
+            logger.info("Print dialog requested");
             if (!job.showPrintDialog(null)) {
                 // job canceled by user
                 socket.reply("Print job canceled", msgid);
+                return;
             }
+        } else {
+            logger.info("No print dialog requested");
         }
 
+        logger.info("printing...");
         engine.print(job);
         job.endJob();
 

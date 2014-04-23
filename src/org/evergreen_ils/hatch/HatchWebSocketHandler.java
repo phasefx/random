@@ -55,7 +55,10 @@ public class HatchWebSocketHandler {
     /**
      * Apply trusted domains.
      *
-     * @param domains Array of domains which we should trust
+     * If the first domain in the list equals "*", that signifies that
+     * all domains should be trusted.
+     *
+     * @param domains Array of domains to trust.
      */
     public static void setTrustedDomains(String[] domains) {
         trustedDomains = domains;
@@ -73,7 +76,7 @@ public class HatchWebSocketHandler {
                 }
             }
         } else {
-            logger.warn("No domains are trusted");
+            logger.warn("No domains are trusted.  All requests will be denied");
         }
     }
 
@@ -180,16 +183,17 @@ public class HatchWebSocketHandler {
 
         Map<String, Object> response = new HashMap<String, Object>();
         response.put("msgid", msgid);
+
         if (success) {
             response.put("content", json);
         } else {
             response.put("error", json);
         }
 
-        logger.info("replying with : " + JSON.toString(response));
+        String jsonString = JSON.toString(response);
+        logger.info("replying with : " + jsonString);
 
         try {
-            String jsonString = JSON.toString(response);
             if (!success) logger.warn(jsonString);
             session.getRemote().sendString(jsonString);
         } catch (IOException e) {
@@ -218,7 +222,6 @@ public class HatchWebSocketHandler {
                 new Long(-1), false);
         }
 
-        FileIO io;
         Long msgid = (Long) params.get("msgid");
         String action = (String) params.get("action");
         String key = (String) params.get("key");
@@ -239,100 +242,64 @@ public class HatchWebSocketHandler {
             return;
         }
 
-        if (action.equals("keys")) {
-            io = new FileIO(profileDirectory);
-            String[] keys = io.keys(key); // OK for key to be null
-            if (keys != null) {
-                reply(keys, msgid);
-            } else {
-                reply("key lookup error", msgid, false);
-            }
-            return;
-        }
-
-        if (action.equals("printers")) {
-            List printers = new PrintManager().getPrintersAsMaps();
-            reply(printers, msgid);
-            return;
-        }
-
-        if (action.equals("print")) {
-            // pass ourselves off to the print handler so it can reply
-            // for us after printing has completed.
-            params.put("socket", this);
-            Hatch.enqueueMessage(params);
-            return;
-        }
-
-        if (action.equals("print-config")) {
-            try {
-                reply(
-                    new PrintManager().configurePrinter(params),
-                    msgid
-                );
-            } catch(IllegalArgumentException e) {
-                reply(e.toString(), msgid, false);
-            }
-            return;
-        }
-
-        // all remaining requests require a key
-        if (key == null || key.equals("")) {
-            reply("No key specified in request", msgid, false);
-            return;
-        }
-
-        if (action.equals("get")) {
-            String val = new FileIO(profileDirectory).get(key);
-            // set() calls store bare JSON. We must pass an 
-            // Object to reply so that it may be embedded into
-            // a larger JSON response object, hence the JSON.parse().
-            if (val == null) {
-                reply(null, msgid);
-            } else {
-                reply(JSON.parse(val), msgid);
-            }
-            return;
-        }
-
-        if (action.equals("remove")) {
-            io = new FileIO(profileDirectory);
-            if (io.remove(key)) {
-                reply("Removal of " + key + " successful", msgid);
-            } else {
-                reply("Removal of " + key + " failed", msgid, false);
-            }
-            return;
-        }
-
-        // all remaining actions require value
-        if (value == null) {
-            reply("No value specified in request", msgid, false);
-            return;
-        }
+        Object response = null;
+        boolean error = false;
 
         switch (action) {
+            case "keys":
+                response = new FileIO(profileDirectory).keys(key);
+                break;
+
+            case "printers":
+                response = new PrintManager().getPrintersAsMaps();
+                break;
+
+            case "print":
+                // pass ourselves off to the print handler so it can reply
+                // for us after printing has completed.
+                params.put("socket", this);
+                Hatch.enqueueMessage(params);
+
+                // we don't want to return a response below, since the 
+                // FX thread will handle that for us.
+                return;
+
+            case "print-config":
+                try {
+                    response = new PrintManager().configurePrinter(params);
+                } catch(IllegalArgumentException e) {
+                    response = e.toString();
+                    error = true;
+                }
+                break;
+
+            case "get":
+                String val = new FileIO(profileDirectory).get(key);
+                if (val != null) {
+                    // set() stores bare JSON. We must pass an 
+                    // Object to reply so that it may be embedded into
+                    // a larger JSON response object, hence the JSON.parse().
+                    response = JSON.parse(val);
+                }
+                break;
+
+            case "remove":
+                response = new FileIO(profileDirectory).remove(key);
+                break;
 
             case "set" :
-                io = new FileIO(profileDirectory);
-                if (io.set(key, value)) {
-                    reply("setting value for " + key + " succeeded", msgid);
-                } else {
-                    reply("setting value for " + key + " succeeded", msgid, false);
-                }
+                response = new FileIO(profileDirectory).set(key, value);
                 break;
 
             case "append" :
-                io = new FileIO(profileDirectory);
-                if (io.append(key, value)) {
-                    reply("appending value for " + key + " succeeded", msgid);
-                } else {
-                    reply("appending value for " + key + " succeeded", msgid, false);
-                }
+                response = new FileIO(profileDirectory).append(key, value);
                 break;
 
             default:
-                reply("No such action: " + action, msgid, false);
+                response = "No such action: " + action;
+                error = true;
         }
+
+        reply(response, msgid, !error);
     }
 }

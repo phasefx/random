@@ -109,6 +109,7 @@ public class Hatch extends Application {
             return new Task<Map<String,Object>>() {
                 protected Map<String,Object> call() {
                     while (true) {
+                        logger.info("MsgListenService waiting for a message...");
                         try {
                             // take() blocks until a message is available
                             return requestQueue.take();
@@ -151,13 +152,15 @@ public class Hatch extends Application {
 
         browser = new BrowserView();
         Scene scene = new Scene(browser, 640, 480); // TODO: printer dimensions
+        //Scene scene = new Scene(browser);
         primaryStage.setScene(scene);
 
         browser.webEngine.getLoadWorker()
             .stateProperty()
             .addListener( (ChangeListener) (obsValue, oldState, newState) -> {
+                logger.info("browser load state " + newState);
                 if (newState == State.SUCCEEDED) {
-                    logger.debug("browser page loaded");
+                    logger.info("Print browser page load completed");
                     new PrintManager().print(browser.webEngine, params);
                 }
             });
@@ -175,18 +178,21 @@ public class Hatch extends Application {
 
         MsgListenService service = new MsgListenService();
 
+        logger.info("starting MsgTask");
+
         service.setOnSucceeded(
             new EventHandler<WorkerStateEvent>() {
 
             @Override
             public void handle(WorkerStateEvent t) {
-                Map<String,Object> message =
+                logger.info("MsgTask handling message.. ");
+                Map<String,Object> message = 
                     (Map<String,Object>) t.getSource().getValue();
 
-                if (message != null) handlePrint(message);
+                // send the message off to be printed
+                handlePrint(message);
 
-                // once this task is complete, kick off the next
-                // message task handler.
+                // go back to listening for more requests
                 startMsgTask();
             }
         });
@@ -208,9 +214,13 @@ public class Hatch extends Application {
 
         Server server = (Server) configuration.configure();
 
+        logger.info("Starting Jetty server");
+
         // start our server, but do not join(), since we want to server
         // to continue running in its own thread
         server.start();
+
+        logger.info("Launching FX Application");
 
         // launch the FX Application thread
         launch(args);

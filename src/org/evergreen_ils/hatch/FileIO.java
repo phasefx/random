@@ -195,11 +195,12 @@ public class FileIO {
      * Returns all keys begining with the specified prefix.
      *
      * @param prefix The initial substring used to limit the return set 
-     * of keys.
+     * of keys.  If the prefix is null, all keys are returned.
      * @return Array of keys
      */
     public String[] keys(String prefix) {
         logger.info("keys => " + prefix);
+
         File dir = new File(basePath);
         if (!dir.exists()) return new String[0];
 
