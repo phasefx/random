@@ -48,6 +48,10 @@ public class PrintManager {
 
     static final Logger logger = Log.getLogger("PrintManager");
 
+    /**
+     * Shows the print dialog, allowing the user to modify settings,
+     * but performs no print.
+     */
     public Map<String,Object> configurePrinter(
         Map<String,Object> params) throws IllegalArgumentException {
 
@@ -65,6 +69,9 @@ public class PrintManager {
         return extractSettingsFromJob(job);
     }
 
+    /**
+     * Print the requested page using the provided settings
+     */
     public void print(WebEngine engine, Map<String,Object>params) {
 
         Long msgid = (Long) params.get("msgid");
@@ -96,6 +103,9 @@ public class PrintManager {
         socket.reply("Print job succeeded", msgid);
     }
 
+    /**
+     * Constructs a PrinterJob based on the provided settings
+     */
     public PrinterJob buildPrinterJob(
         Map<String,Object> settings) throws IllegalArgumentException {
 
@@ -116,6 +126,10 @@ public class PrintManager {
         return job;
     }
 
+    /**
+     * Builds a PageLayout for the requested printer, using the
+     * provided settings.
+     */
     protected PageLayout buildPageLayout(
             Map<String,Object> settings, Printer printer) {
 
@@ -160,7 +174,9 @@ public class PrintManager {
         );
     }
 
-    // applies the settings in settings to the provided print job
+    /**
+     * Applies the provided settings to the PrinterJob.
+     */
     protected void applySettingsToJob(
             Map<String,Object> settings, PrinterJob job) {
 
@@ -228,6 +244,10 @@ public class PrintManager {
         }
     }
 
+    /**
+     * Extracts and flattens the various configuration values from a 
+     * PrinterJob and its associated printer and stores the values in a Map.
+     */
     protected Map<String,Object> extractSettingsFromJob(PrinterJob job) {
         Map<String,Object> settings = new HashMap<String,Object>();
         JobSettings jobSettings = job.getJobSettings();
@@ -296,6 +316,9 @@ public class PrintManager {
         return settings;
     }
 
+    /**
+     * Returns a list of all known Printer's
+     */
     protected Printer[] getPrinters() {
         ObservableSet<Printer> printerObserver = Printer.getAllPrinters();
 
@@ -304,6 +327,10 @@ public class PrintManager {
         return (Printer[]) printerObserver.toArray(new Printer[0]);
     }
 
+    /**
+     * Returns a list of all known printers, with their attributes 
+     * encoded as a simple key/value Map.
+     */
     protected List<Map<String,Object>> getPrintersAsMaps() {
         Printer[] printers = getPrinters();
 
@@ -326,6 +353,9 @@ public class PrintManager {
     }
 
 
+    /**
+     * Returns the Printer with the specified name.
+     */
     protected Printer getPrinterByName(String name) {
         Printer[] printers = getPrinters();
         for (Printer printer : printers) {
@@ -334,94 +364,5 @@ public class PrintManager {
         }
         return null;
     }
-
-
-    private void debugPrintService(PrintService printer) {
-
-        PrintService[] printServices;
-        String defaultPrinter = "";
-
-        if (printer != null) {
-            printServices = new PrintService[] {printer};
-        } else {
-            printServices = PrintServiceLookup.lookupPrintServices(null, null);
-            PrintService def = PrintServiceLookup.lookupDefaultPrintService();
-            if (def != null) defaultPrinter = def.getName();
-        }
-
-        for (PrintService service : printServices) {
-            logger.info("Printer Debug: found printer " + service.getName());
-            if (service.getName().equals(defaultPrinter)) {
-                logger.info("    Printer Debug: Is Default");
-            }
-
-            AttributeSet attributes = service.getAttributes();
-            for (Attribute a : attributes.toArray()) {
-                String name = a.getName();
-                String value = attributes.get(a.getClass()).toString();
-                logger.info("    Printer Debug: " + name + " => " + value);
-            }
-        }
-    }
-
-    public PrintService getPrintServiceByName(String name) {
-        PrintService[] printServices =
-            PrintServiceLookup.lookupPrintServices(null, null);
-        for (PrintService service : printServices) {
-            if (service.getName().equals(name))
-                return service;
-        }
-        return null;
-    }
-
-    /*
-    public List<HashMap> getPrinters() {
-
-        List<HashMap> printers = new LinkedList<HashMap>();
-        PrintService[] printServices =
-            PrintServiceLookup.lookupPrintServices(null, null);
-
-        String defaultPrinter = "";
-        PrintService def = PrintServiceLookup.lookupDefaultPrintService();
-        if (def != null) defaultPrinter = def.getName();
-
-        for (PrintService service : printServices) {
-            HashMap<String, Object> printer = new HashMap<String, Object>();
-            printers.add(printer);
-
-            if (service.getName().equals(defaultPrinter))
-                printer.put("is-default", new Boolean(true));
-
-            // collect information about the printer attributes we care about
-            Class[] attrClasses = {
-                Media.class, 
-                //OrientationRequested.class
-            };
-
-            for (Class c : attrClasses) {
-                Attribute[] attrs = (Attribute[])
-                    service.getSupportedAttributeValues(c, null, null);
-
-                if (attrs.length > 0) {
-                    ArrayList<String> values = new ArrayList<String>(attrs.length);
-                    for (Attribute a : attrs) {
-                        String s = a.toString();
-                        if (!values.contains(s)) values.add(s);
-                    }
-                    printer.put(attrs[0].getName(), values);
-                }
-            }
-
-            AttributeSet attributes = service.getAttributes();
-            for (Attribute a : attributes.toArray()) {
-                String name = a.getName();
-                String value = attributes.get(a.getClass()).toString();
-                printer.put(name, value);
-            }
-        }
-
-        return printers;
-    }
-    */
 }
 
