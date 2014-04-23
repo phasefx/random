@@ -209,10 +209,14 @@ public class HatchWebSocketHandler {
         }
 
         if (action.equals("print-config")) {
-            reply(
-                new PrintManager().configurePrinter(params),
-                msgid
-            );
+            try {
+                reply(
+                    new PrintManager().configurePrinter(params),
+                    msgid
+                );
+            } catch(IllegalArgumentException e) {
+                reply(e.toString(), msgid, false);
+            }
             return;
         }
 

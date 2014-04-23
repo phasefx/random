@@ -25,9 +25,6 @@ import javafx.scene.web.WebEngine;
 import javafx.collections.ObservableSet;
 import javafx.collections.SetChangeListener;
 
-import java.util.Set;
-import java.util.LinkedHashSet;
-
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import javax.print.attribute.Attribute;
@@ -36,48 +33,56 @@ import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.Media;
 import javax.print.attribute.standard.OrientationRequested;
 
+import java.lang.IllegalArgumentException;
+
 // data structures
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Set;
+import java.util.LinkedHashSet;
 
 public class PrintManager {
 
     static final Logger logger = Log.getLogger("PrintManager");
 
-    public Map<String,Object> configurePrinter(Map<String,Object> params) {
-        Map<String,Object> config = (Map<String,Object>) params.get("config");
+    public Map<String,Object> configurePrinter(
+        Map<String,Object> params) throws IllegalArgumentException {
 
-        String name = (String) config.get("printer");
-        Printer printer = getPrinterByName(name);
+        Map<String,Object> settings = 
+            (Map<String,Object>) params.get("config");
 
-        if (printer == null) {
-            logger.warn("No such printer: " + name);
-            return null;
-        }
-
-        PageLayout layout = buildPageLayout(config, printer);
-        PrinterJob job = PrinterJob.createPrinterJob(printer);
-
-        if (layout != null) job.getJobSettings().setPageLayout(layout);
-
-        // apply any provided settings to the job
-        applySettingsToJob(config, job);
-
-        try {
-            job.showPrintDialog(null);
-        } catch (IllegalArgumentException e) {
-            logger.warn(e);
-            return null;
-        }
+        PrinterJob job = buildPrinterJob(settings);
+        
+        job.showPrintDialog(null);
 
         // no printing needed
         job.endJob(); 
 
         // extract modifications to the settings applied within the dialog
         return extractSettingsFromJob(job);
+    }
+
+    public PrinterJob buildPrinterJob(
+        Map<String,Object> settings) throws IllegalArgumentException {
+
+        String name = (String) settings.get("printer");
+        Printer printer = getPrinterByName(name);
+
+        if (printer == null) 
+            throw new IllegalArgumentException("No such printer: " + name);
+
+        PageLayout layout = buildPageLayout(settings, printer);
+        PrinterJob job = PrinterJob.createPrinterJob(printer);
+
+        if (layout != null) job.getJobSettings().setPageLayout(layout);
+
+        // apply any provided settings to the job
+        applySettingsToJob(settings, job);
+
+        return job;
     }
 
     protected PageLayout buildPageLayout(
@@ -134,76 +139,63 @@ public class PrintManager {
             job.getPrinter().getPrinterAttributes();
 
         String collation = (String) settings.get("collation");
+        Long copies = (Long) settings.get("copies");
+        String printColor = (String) settings.get("printColor");
+        String printQuality = (String) settings.get("printQuality");
+        String printSides = (String) settings.get("printSides");
+        String paperSource = (String) settings.get("paperSource");
+        Object[] pageRanges = (Object[]) settings.get("pageRanges");
+
         if (collation != null) 
             jobSettings.setCollation(Collation.valueOf(collation));
 
-        if (settings.get("copies") != null) {
-            jobSettings.setCopies(
-                ((Long) settings.get("copies")).intValue()
-            );
-        }
+        if (copies != null) 
+            jobSettings.setCopies(((Long) settings.get("copies")).intValue());
 
-        if (settings.get("printColor") != null) {
-            jobSettings.setPrintColor(
-                PrintColor.valueOf((String) settings.get("printColor")));
-        }
+        if (printColor != null) 
+            jobSettings.setPrintColor(PrintColor.valueOf(printColor));
 
-        if (settings.get("printQuality") != null) {
-            jobSettings.setPrintQuality(
-                PrintQuality.valueOf((String) settings.get("printQuality")));
-        }
+        if (printQuality != null) 
+            jobSettings.setPrintQuality(PrintQuality.valueOf(printQuality));
 
-        if (settings.get("printSides") != null) {
-            jobSettings.setPrintSides(
-                PrintSides.valueOf((String) settings.get("printSides")));
-        }
+        if (printSides != null) 
+            jobSettings.setPrintSides(PrintSides.valueOf(printSides));
 
         // find the paperSource by name
-        if (settings.get("paperSource") != null) {
-            String sourceName = (String) settings.get("paperSource");
-
+        if (paperSource != null) {
             Set<PaperSource> paperSources = 
                 printerAttrs.getSupportedPaperSources();
 
             // note: "Automatic" appears to be a virtual source,
             // meaning no source.. meaning let the printer decide.
             for (PaperSource source : paperSources) {
-                if (source.getName().equals(sourceName)) {
-                    logger.info("matched paper source for " + sourceName);
+                if (source.getName().equals(paperSource)) {
+                    logger.info("matched paper source for " + paperSource);
                     jobSettings.setPaperSource(source);
                     break;
                 }
             }
         }
 
-        /*
-        // page ranges --------------
-        PageRange[] ranges = jobSettings.getPageRanges();
-        if (ranges != null) {
-            List<Map<String,Integer>> pageRanges = 
-                new LinkedList<Map<String,Integer>>();
 
-            for (PageRange range : ranges) {
-                Map<String,Integer> oneRange = new HashMap<String,Integer>();
-                oneRange.put("startPage", range.getStartPage());
-                oneRange.put("startPage", range.getEndPage());
-                pageRanges.add(oneRange);
-            }
-            settings.put("pageRanges", pageRanges);
+        if (pageRanges != null) {
+            logger.info("pageRanges = " + pageRanges.toString());
+            List<PageRange> builtRanges = new LinkedList<PageRange>();
+            int i = 0, start = 0, end = 0;
+            do {
+                if (i % 2 == 0 && i > 0)
+                    builtRanges.add(new PageRange(start, end));
+
+                if (i == pageRanges.length) break;
+
+                int current = ((Long) pageRanges[i]).intValue();
+                if (i % 2 == 0) start = current; else end = current;
+
+            } while (++i > 0);
+
+            jobSettings.setPageRanges(builtRanges.toArray(new PageRange[0]));
         }
-
-
-        // resolution --------------
-        PrintResolution resolution = jobSettings.getPrintResolution();
-        Map<String,Integer> resolutionMap = new HashMap<String,Integer>();
-        resolutionMap.put("feedResolution", resolution.getFeedResolution());
-        resolutionMap.put("crossFeedResolution", resolution.getCrossFeedResolution());
-        settings.put("printResolution", resolutionMap);
-
-        logger.info("compiled printer properties: " + settings.toString());
-        return settings;
-        */
-    };
+    }
 
 
     public void print(WebEngine engine, Map<String,Object>params) {
@@ -309,25 +301,21 @@ public class PrintManager {
         // page ranges --------------
         PageRange[] ranges = jobSettings.getPageRanges();
         if (ranges != null) {
-            List<Map<String,Integer>> pageRanges = 
-                new LinkedList<Map<String,Integer>>();
+            List<Integer> pageRanges = new LinkedList<Integer>();
 
-            for (PageRange range : ranges) {
-                Map<String,Integer> oneRange = new HashMap<String,Integer>();
-                oneRange.put("startPage", range.getStartPage());
-                oneRange.put("endPage", range.getEndPage());
-                pageRanges.add(oneRange);
+            if (ranges.length == 1 &&
+                ranges[0].getStartPage() == 1 && 
+                ranges[0].getEndPage() == Integer.MAX_VALUE) {
+                // full range -- no need to store
+
+            } else {
+                for (PageRange range : ranges) {
+                    pageRanges.add(range.getStartPage());
+                    pageRanges.add(range.getEndPage());
+                }
+                settings.put("pageRanges", pageRanges);
             }
-            settings.put("pageRanges", pageRanges);
         }
-
-
-        // resolution --------------
-        PrintResolution resolution = jobSettings.getPrintResolution();
-        Map<String,Integer> resolutionMap = new HashMap<String,Integer>();
-        resolutionMap.put("feedResolution", resolution.getFeedResolution());
-        resolutionMap.put("crossFeedResolution", resolution.getCrossFeedResolution());
-        settings.put("printResolution", resolutionMap);
 
         logger.info("compiled printer properties: " + settings.toString());
         return settings;
