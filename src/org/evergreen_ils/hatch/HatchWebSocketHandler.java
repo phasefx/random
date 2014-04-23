@@ -37,12 +37,26 @@ import java.util.Map;
 @WebSocket
 public class HatchWebSocketHandler {
 
+    /** A single connection to a WebSockets client */
     private Session session;
+
+    /** List of Origin domains from which we allow connections */
     private static String[] trustedDomains;
+
+    /** True if we trust all Origin domains */
     private static boolean trustAllDomains = false;
+
+    /** Root directory for all FileIO operations */
     private static String profileDirectory;
+
+    /** Our logger instance */
     private static final Logger logger = Log.getLogger("WebSocketHandler");
 
+    /**
+     * Apply trusted domains.
+     *
+     * @param domains Array of domains which we should trust
+     */
     public static void setTrustedDomains(String[] domains) {
         trustedDomains = domains;
 
@@ -63,16 +77,21 @@ public class HatchWebSocketHandler {
         }
     }
 
+    /**
+     * Sets the profile directory
+     *
+     * @param directory Directory path as a String
+     */
     public static void setProfileDirectory(String directory) {
         profileDirectory = directory;
     }
 
 
     /**
-     * config is passed in from our WebSocketServlet container,
-     * hence the public+static.  Possible to access directly?
+     * Runs the initial, global configuration for this handler.
+     * TODO: move this into setProfileDirectory() (which will need to
+     * be force-called regardless of config)?
      */
-    //public static void configure(ServletConfig config) {
     public static void configure() {
         logger.info("WebSocketHandler.configure()");
 
@@ -86,6 +105,13 @@ public class HatchWebSocketHandler {
         }
     }
 
+    /**
+     * Compares the Origin of the current WebSocket connection to the list
+     * of allowed domains to determine if the current connection should
+     * be allowed.
+     *
+     * @return True if the Origin domain is allowed, false otherwise.
+     */
     protected boolean verifyOriginDomain() {
         logger.info("received connection from IP " +
             session.getRemoteAddress().getAddress());
@@ -110,22 +136,46 @@ public class HatchWebSocketHandler {
     }
 
 
+    /**
+     * WebSocket onConnect handler.
+     *
+     * Verify the Origin domain before any communication may take place
+     */
     @OnWebSocketConnect
     public void onConnect(Session session) {
         this.session = session;
         if (!verifyOriginDomain()) session.close();
     }
 
+    /**
+     * WebSocket onClose handler.
+     *
+     * Clears our current session.
+     */
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
         logger.info("onClose() statusCode=" + statusCode + ", reason=" + reason);
         this.session = null;
     }
 
+    /**
+     * Send a message to our connected client.
+     *
+     * @param json A JSON-encodable object to send to the caller.
+     * @param msgid The message identifier
+     */
     protected void reply(Object json, Long msgid) {
         reply(json, msgid, true);
     }
 
+    /**
+     * Send a message to our connected client.
+     *
+     * @param json A JSON-encodable object to send to the caller.
+     * @param msgid The message identifier
+     * @param success If false, the response will be packaged as an error 
+     * message.
+     */
     protected void reply(Object json, Long msgid, boolean success) {
 
         Map<String, Object> response = new HashMap<String, Object>();
@@ -147,6 +197,12 @@ public class HatchWebSocketHandler {
         }
     }
 
+    /**
+     * WebSocket onMessage handler.
+     *
+     * Processes the incoming message and passes the request off to the 
+     * necessary handler.  Messages must be encoded as JSON strings.
+     */
     @OnWebSocketMessage
     @SuppressWarnings("unchecked") // direct casting JSON-parsed objects
     public void onMessage(String message) {
@@ -241,7 +297,7 @@ public class HatchWebSocketHandler {
 
         if (action.equals("remove")) {
             io = new FileIO(profileDirectory);
-            if (io.delete(key)) {
+            if (io.remove(key)) {
                 reply("Removal of " + key + " successful", msgid);
             } else {
                 reply("Removal of " + key + " failed", msgid, false);

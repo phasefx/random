@@ -51,12 +51,38 @@ import java.util.Map;
 
 import java.io.FileInputStream;
 
+/**
+ * Main class for Hatch.
+ *
+ * This class operates as a two-headed beast, whose heads will occasionally
+ * communicate with each other.
+ *
+ * It runs a JavaFX thread for printing HTML documents and runs a Jetty
+ * server thread for handling communication with external clients.
+ *
+ * Most of the work performed happens solely in the Jetty server thread.
+ * Attempts to print, however, are passed into the JavaFX thread so that
+ * the HTML may be loaded into a WebView for printing, which must happen
+ * within the JavaFX thread.
+ *
+ * Messages are passed from the Jetty thread to the JavaFX thread via a
+ * blocking thread queue, observed by a separate Service thread, whose 
+ * job is only to pull messages from the queue.
+ *
+ */
 public class Hatch extends Application {
 
+    /** Browser Region for rendering and printing HTML */
     private BrowserView browser;
+
+    /** BrowserView requires a stage for rendering */
     private Stage primaryStage;
+    
+    /** Our logger instance */
     static final Logger logger = Log.getLogger("Hatch");
 
+    /** Message queue for passing messages from the Jetty thread into
+     * the JavaFX Application thread */
     private static LinkedBlockingQueue<Map> requestQueue =
         new LinkedBlockingQueue<Map>();
 
@@ -97,6 +123,9 @@ public class Hatch extends Application {
     }
 
 
+    /**
+     * JavaFX startup call
+     */
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
@@ -104,6 +133,9 @@ public class Hatch extends Application {
         startMsgTask();
     }
 
+    /**
+     * Queues a message for processing by the queue processing thread.
+     */
     public static void enqueueMessage(Map<String,Object> params) {
         logger.debug("queueing print message");
         requestQueue.offer(params);
@@ -137,8 +169,7 @@ public class Hatch extends Application {
     /**
      * Fire off the Service task, which checks for queued messages.
      *
-     * When a queued message is found, it's analyzed and passed off
-     * to the correct message handler
+     * When a queued message is found, it's sent off for printing.
      */
     public void startMsgTask() {
 
@@ -163,6 +194,12 @@ public class Hatch extends Application {
         service.start();
     }
 
+    /**
+     * Hatch main.
+     *
+     * Reads the Jetty configuration, starts the Jetty server thread, 
+     * then launches the JavaFX Application thread.
+     */
     public static void main(String[] args) throws Exception {
 
         // build a server from our hatch.xml configuration file

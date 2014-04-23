@@ -22,13 +22,28 @@ import org.eclipse.jetty.util.log.Logger;
 
 public class FileIO {
 
+    /** All files are read from and written to this directory */
     String basePath;
+
+    // logger
     private static final Logger logger = Log.getLogger("FileIO");
 
+    /**
+     * Constructs a new FileIO with the provided base path.
+     *
+     * @param directory Directory to use as the base path for all file 
+     * operations.
+     */
     public FileIO(String directory) {
         basePath = directory;
     }
 
+    /**
+     * Locates the requested file by name within our configured base path.
+     *
+     * @param key The relative file name (key)
+     * @return The File object if found.
+     */
     protected File getFile(String key) {
         File dir = new File(basePath);
         if (!dir.exists()) {
@@ -40,6 +55,14 @@ public class FileIO {
         return new File(dir, key);
     }
 
+    /**
+     * Sets the content of a file.
+     *
+     * @param key The relative file name (key)
+     * @param text The new file content
+     *
+     * @return success or failure
+     */
     public boolean set(String key, String text) {
         logger.info("set => " + key);
         File file = getFile(key);
@@ -69,6 +92,15 @@ public class FileIO {
         return true;
     }
 
+    /**
+     * Appends content to a file.
+     *
+     * If the file does not exist, it is first created.
+     *
+     * @param key The relative file name (key)
+     * @param text The content to append to the file
+     * @return success or failure
+     */
     public boolean append(String key, String text) {
         logger.info("append => " + key);
         File file = getFile(key);
@@ -97,6 +129,12 @@ public class FileIO {
         return true;
     }
 
+    /**
+     * Gets the text contents of a file.
+     *
+     * @param key The relative file name (key)
+     * @return The text content of the file
+     */
     public String get(String key) {
         logger.info("get => " + key);
         File file = getFile(key);
@@ -121,8 +159,14 @@ public class FileIO {
         return buf.toString();
     }
 
-    public boolean delete(String key) {
-        logger.info("delete => " + key);
+    /**
+     * Removes (deletes) a file.
+     *
+     * @param The relative file name (key)
+     * @return success or failure
+     */
+    public boolean remove(String key) {
+        logger.info("remove => " + key);
         File file = getFile(key);
         try {
             if (file.exists() && !file.delete()) {
@@ -138,10 +182,22 @@ public class FileIO {
         }
     }
 
+    /**
+     * Returns the full list of stored keys.
+     *
+     * @return Array of relative file names
+     */
     public String[] keys() {
         return keys(null);
     }
 
+    /**
+     * Returns all keys begining with the specified prefix.
+     *
+     * @param prefix The initial substring used to limit the return set 
+     * of keys.
+     * @return Array of keys
+     */
     public String[] keys(String prefix) {
         logger.info("keys => " + prefix);
         File dir = new File(basePath);

@@ -15,18 +15,16 @@
  */
 package org.evergreen_ils.hatch;
 
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
-
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
+/**
+ * Links HatchWebSocketHandler in as a Servlet handler.
+ */
 public class HatchWebSocketServlet extends WebSocketServlet {
-
-    static final Logger logger = Log.getLogger("WebSocketServlet");
 
     @Override
     public void configure(WebSocketServletFactory factory) {

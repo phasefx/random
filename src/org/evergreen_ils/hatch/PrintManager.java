@@ -46,11 +46,18 @@ import java.util.LinkedHashSet;
 
 public class PrintManager {
 
+    /** Our logger instance */
     static final Logger logger = Log.getLogger("PrintManager");
 
     /**
      * Shows the print dialog, allowing the user to modify settings,
      * but performs no print.
+     *
+     * @param params Print request parameters.  This is the top-level
+     * request object, containing the action, etc.  Within 'params'
+     * will be a sub-object under the "config" key, which contains
+     * the Printer configuration options (if any are already set).
+     * @return A Map of printer settings extracted from the print dialog.
      */
     public Map<String,Object> configurePrinter(
         Map<String,Object> params) throws IllegalArgumentException {
@@ -71,6 +78,9 @@ public class PrintManager {
 
     /**
      * Print the requested page using the provided settings
+     *
+     * @param engine The WebEngine instance to print
+     * @param params Print request parameters
      */
     public void print(WebEngine engine, Map<String,Object>params) {
 
@@ -104,7 +114,10 @@ public class PrintManager {
     }
 
     /**
-     * Constructs a PrinterJob based on the provided settings
+     * Constructs a PrinterJob based on the provided settings.
+     *
+     * @param settings The printer configuration Map.
+     * @return The newly created printer job.
      */
     public PrinterJob buildPrinterJob(
         Map<String,Object> settings) throws IllegalArgumentException {
@@ -129,6 +142,10 @@ public class PrintManager {
     /**
      * Builds a PageLayout for the requested printer, using the
      * provided settings.
+     *
+     * @param settings The printer configuration settings
+     * @param printer The printer from which to spawn the PageLayout
+     * @return The newly constructed PageLayout object.
      */
     protected PageLayout buildPageLayout(
             Map<String,Object> settings, Printer printer) {
@@ -176,6 +193,9 @@ public class PrintManager {
 
     /**
      * Applies the provided settings to the PrinterJob.
+     *
+     * @param settings The printer configuration settings map.
+     * @param job A PrinterJob, constructed from buildPrinterJob()
      */
     protected void applySettingsToJob(
             Map<String,Object> settings, PrinterJob job) {
@@ -247,6 +267,9 @@ public class PrintManager {
     /**
      * Extracts and flattens the various configuration values from a 
      * PrinterJob and its associated printer and stores the values in a Map.
+     *
+     * @param job The PrinterJob whose attributes are to be extracted.
+     * @return The extracted printer settings map.
      */
     protected Map<String,Object> extractSettingsFromJob(PrinterJob job) {
         Map<String,Object> settings = new HashMap<String,Object>();
@@ -317,7 +340,9 @@ public class PrintManager {
     }
 
     /**
-     * Returns a list of all known Printer's
+     * Returns all known Printer's.
+     *
+     * @return Array of all printers
      */
     protected Printer[] getPrinters() {
         ObservableSet<Printer> printerObserver = Printer.getAllPrinters();
@@ -330,6 +355,8 @@ public class PrintManager {
     /**
      * Returns a list of all known printers, with their attributes 
      * encoded as a simple key/value Map.
+     *
+     * @return Map of printer information.
      */
     protected List<Map<String,Object>> getPrintersAsMaps() {
         Printer[] printers = getPrinters();
@@ -355,6 +382,10 @@ public class PrintManager {
 
     /**
      * Returns the Printer with the specified name.
+     *
+     * @param name The printer name
+     * @return The printer whose name matches the provided name, or null
+     * if no such printer is found.
      */
     protected Printer getPrinterByName(String name) {
         Printer[] printers = getPrinters();
