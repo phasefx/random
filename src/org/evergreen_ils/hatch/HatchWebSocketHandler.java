@@ -279,7 +279,12 @@ public class HatchWebSocketHandler {
                     // set() stores bare JSON. We must pass an 
                     // Object to reply so that it may be embedded into
                     // a larger JSON response object, hence the JSON.parse().
-                    response = JSON.parse(val);
+                    try {
+                        response = JSON.parse(val);
+                    } catch(java.lang.IllegalStateException e) {
+                        error = true;
+                        response = "Error JSON-parsing stored value " + val;
+                    }
                 }
                 break;
 
