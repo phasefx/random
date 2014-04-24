@@ -168,14 +168,6 @@ public class Hatch extends Application {
                     Platform.runLater(new Runnable() {
                         @Override public void run() {
                             new PrintManager().print(browser.webEngine, params);
-                            
-                            // don't start a new message listener thread
-                            // until we are done with this print call.
-                            // otherwise, we risk running parallel print
-                            // operations and that could be bad... not sure.
-                            // In the meantime, pending messages will be 
-                            // sitting in the WebSocket input buffers.
-                            startMsgTask();
                         }
                     });
                 }
@@ -183,6 +175,10 @@ public class Hatch extends Application {
 
         logger.info("printing " + content.length() + " bytes of " + contentType);
         browser.webEngine.loadContent(content, contentType);
+
+        // After queueing up the HTML for printing, go back to listening
+        // for new messages.
+        startMsgTask();
     }
 
     /**

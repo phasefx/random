@@ -116,7 +116,11 @@ public class PrintManager {
             logger.info("No print dialog requested");
         }
 
-        logger.info("printing...");
+        Thread[] all = new Thread[100];
+        int count = Thread.currentThread().enumerate(all);
+        logger.info(count + " active threads in print");
+        logger.info("Thread " + Thread.currentThread().getId() + " printing...");
+
         engine.print(job);
         logger.info("after print");
 
