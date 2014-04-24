@@ -104,9 +104,10 @@ public class PrintManager {
 
         if (showDialog != null && showDialog.booleanValue()) {
             logger.info("Print dialog requested");
+
             if (!job.showPrintDialog(null)) {
                 // job canceled by user
-    
+                logger.info("after dialog");
                 job.endJob();
                 socket.reply("Print job canceled", msgid);
                 return;
@@ -117,7 +118,10 @@ public class PrintManager {
 
         logger.info("printing...");
         engine.print(job);
+        logger.info("after print");
+
         job.endJob();
+
         socket.reply("Print job succeeded", msgid);
     }
 

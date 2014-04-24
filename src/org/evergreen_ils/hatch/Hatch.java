@@ -69,6 +69,10 @@ import java.io.FileInputStream;
  * blocking thread queue, observed by a separate Service thread, whose 
  * job is only to pull messages from the queue.
  *
+ * Beware: On Mac OS, the "FX Application Thread" is renamed to 
+ * "AppKit Thread" when the first call to print() or showPrintDialog() 
+ * [in PrintManager] is made.  This is highly confusing when viewing logs.
+ *
  */
 public class Hatch extends Application {
 
@@ -130,7 +134,6 @@ public class Hatch extends Application {
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
-        logger.debug("start()");
         startMsgTask();
     }
 
@@ -151,8 +154,7 @@ public class Hatch extends Application {
         String contentType = (String) params.get("contentType");
 
         browser = new BrowserView();
-        Scene scene = new Scene(browser, 640, 480); // TODO: printer dimensions
-        //Scene scene = new Scene(browser);
+        Scene scene = new Scene(browser);
         primaryStage.setScene(scene);
 
         browser.webEngine.getLoadWorker()
@@ -161,7 +163,21 @@ public class Hatch extends Application {
                 logger.info("browser load state " + newState);
                 if (newState == State.SUCCEEDED) {
                     logger.info("Print browser page load completed");
-                    new PrintManager().print(browser.webEngine, params);
+
+                    // Avoid nested UI event loops -- runLater
+                    Platform.runLater(new Runnable() {
+                        @Override public void run() {
+                            new PrintManager().print(browser.webEngine, params);
+                            
+                            // don't start a new message listener thread
+                            // until we are done with this print call.
+                            // otherwise, we risk running parallel print
+                            // operations and that could be bad... not sure.
+                            // In the meantime, pending messages will be 
+                            // sitting in the WebSocket input buffers.
+                            startMsgTask();
+                        }
+                    });
                 }
             });
 
@@ -189,11 +205,16 @@ public class Hatch extends Application {
                 Map<String,Object> message = 
                     (Map<String,Object>) t.getSource().getValue();
 
-                // send the message off to be printed
-                handlePrint(message);
-
-                // go back to listening for more requests
-                startMsgTask();
+                // avoid nesting UI event loops by kicking off the print
+                // operation from the main FX loop after this event handler 
+                // has exited.
+                Platform.runLater(
+                    new Runnable() {
+                        @Override public void run() {
+                            handlePrint(message);
+                        }
+                    }
+                );
             }
         });
 
