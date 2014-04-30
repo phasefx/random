@@ -40,6 +40,9 @@ public class HatchWebSocketHandler {
     /** A single connection to a WebSockets client */
     private Session session;
 
+    /** Current origin domain */
+    private String origin;
+
     /** List of Origin domains from which we allow connections */
     private static String[] trustedDomains;
 
@@ -119,7 +122,7 @@ public class HatchWebSocketHandler {
         logger.info("received connection from IP " +
             session.getRemoteAddress().getAddress());
 
-        String origin = session.getUpgradeRequest().getHeader("Origin");
+        origin = session.getUpgradeRequest().getHeader("Origin");
 
         if (origin == null) {
             logger.warn("No Origin header in request; Dropping connection");
@@ -244,10 +247,11 @@ public class HatchWebSocketHandler {
 
         Object response = null;
         boolean error = false;
+        FileIO io = new FileIO(profileDirectory, origin);
 
         switch (action) {
             case "keys":
-                response = new FileIO(profileDirectory).keys(key);
+                response = io.keys(key);
                 break;
 
             case "printers":
@@ -274,7 +278,7 @@ public class HatchWebSocketHandler {
                 break;
 
             case "get":
-                String val = new FileIO(profileDirectory).get(key);
+                String val = io.get(key);
                 if (val != null) {
                     // set() stores bare JSON. We must pass an 
                     // Object to reply so that it may be embedded into
@@ -289,15 +293,15 @@ public class HatchWebSocketHandler {
                 break;
 
             case "remove":
-                response = new FileIO(profileDirectory).remove(key);
+                response = io.remove(key);
                 break;
 
             case "set" :
-                response = new FileIO(profileDirectory).set(key, value);
+                response = io.set(key, value);
                 break;
 
             case "append" :
-                response = new FileIO(profileDirectory).append(key, value);
+                response = io.append(key, value);
                 break;
 
             default:

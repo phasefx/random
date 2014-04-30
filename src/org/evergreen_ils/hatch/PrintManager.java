@@ -67,13 +67,18 @@ public class PrintManager {
 
         PrinterJob job = buildPrinterJob(settings);
         
-        job.showPrintDialog(null);
+        boolean approved = job.showPrintDialog(null);
 
         // no printing needed
         job.endJob(); 
 
-        // extract modifications to the settings applied within the dialog
-        return extractSettingsFromJob(job);
+        if (approved) {
+            // extract modifications to the settings applied within the dialog
+            return extractSettingsFromJob(job);
+        } else {
+            // return the unmodified settings back to the caller
+            return settings;
+        }
     }
 
     /**

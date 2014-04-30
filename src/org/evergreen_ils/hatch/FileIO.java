@@ -17,6 +17,7 @@ package org.evergreen_ils.hatch;
 
 import java.io.*;
 import java.util.LinkedList;
+import java.util.Arrays;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 
@@ -24,6 +25,39 @@ public class FileIO {
 
     /** All files are read from and written to this directory */
     String basePath;
+    String originDomain;
+
+    // routine for scrubbing invalid chars from file names / paths
+    // http://stackoverflow.com/questions/1155107/is-there-a-cross-platform-java-method-to-remove-filename-special-chars
+    final static int[] illegalChars = {
+        34, 60, 62, 124, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 
+        15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 
+        58, 42, 63, 92, 47
+    };
+
+    static { Arrays.sort(illegalChars); }
+
+    public static String cleanFileName(String badFileName) {
+        char lastChar = 0;
+        StringBuilder cleanName = new StringBuilder();
+        for (int i = 0; i < badFileName.length(); i++) {
+            int c = (int)badFileName.charAt(i);
+            if (Arrays.binarySearch(illegalChars, c) < 0) {
+                cleanName.append((char)c);
+                lastChar = (char) c;
+            } else {
+                // avoid dupe-ing the placeholder chars, since that
+                // relays no useful information (apart from the number
+                // of illegal characters)
+                // This is usefuf or things like https:// with dupe "/" chars
+                if (lastChar != '_')
+                    cleanName.append('_');
+                lastChar = '_';
+            }
+        }
+        return cleanName.toString();
+    }
+    // -------------------------------------------------- 
 
     // logger
     private static final Logger logger = Log.getLogger("FileIO");
@@ -31,11 +65,14 @@ public class FileIO {
     /**
      * Constructs a new FileIO with the provided base path.
      *
-     * @param directory Directory to use as the base path for all file 
-     * operations.
+     * @param directory Directory to use in conjuction with the origin
+     * (see below) as the base path for all file operations.
+     * directory is assumed to be a valid path.
+     * @param origin Origin domain of this request.  
      */
-    public FileIO(String directory) {
-        basePath = directory;
+    public FileIO(String directory, String origin) {
+        basePath = directory;  
+        originDomain = cleanFileName(origin);
     }
 
     /**
@@ -45,14 +82,28 @@ public class FileIO {
      * @return The File object if found.
      */
     protected File getFile(String key) {
+
+        // basePath directory
         File dir = new File(basePath);
         if (!dir.exists()) {
             if (!dir.mkdir()) {
-                logger.info("Unable to create director: " + basePath);
+                logger.info("Unable to create directory: " + dir.getName());
                 return null;
             }
         }
-        return new File(dir, key);
+
+        // basePath + originDomain directory
+        File subDir = new File(basePath, originDomain);
+        if (!subDir.exists()) {
+            if (!subDir.mkdir()) {
+                logger.info("Unable to create directory: " + subDir.getName());
+                return null;
+            }
+        }
+                
+        logger.info("working with directory: " + subDir.getName());
+        key = cleanFileName(key);
+        return new File(subDir, key);
     }
 
     /**
@@ -66,6 +117,8 @@ public class FileIO {
     public boolean set(String key, String text) {
         logger.info("set => " + key);
         File file = getFile(key);
+
+        if (text == null) return false;
 
         try {
 
