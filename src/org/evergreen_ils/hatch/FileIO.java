@@ -76,12 +76,9 @@ public class FileIO {
     }
 
     /**
-     * Locates the requested file by name within our configured base path.
-     *
-     * @param key The relative file name (key)
-     * @return The File object if found.
+     * Returns the base directory as a File for all file IO actions
      */
-    protected File getFile(String key) {
+    protected File baseDir() {
 
         // basePath directory
         File dir = new File(basePath);
@@ -100,10 +97,22 @@ public class FileIO {
                 return null;
             }
         }
-                
-        logger.info("working with directory: " + subDir.getName());
+
+        logger.info("baseDir: " + subDir.getName());
+        return subDir;
+    }
+
+    /**
+     * Locates the requested file by name within our configured base path.
+     *
+     * @param key The relative file name (key)
+     * @return The File object if found.
+     */
+    protected File getFile(String key) {
+        File baseDir = baseDir();
+        if (baseDir == null) return null;
         key = cleanFileName(key);
-        return new File(subDir, key);
+        return new File(baseDir, key);
     }
 
     /**
@@ -254,8 +263,9 @@ public class FileIO {
     public String[] keys(String prefix) {
         logger.info("keys => " + prefix);
 
-        File dir = new File(basePath);
-        if (!dir.exists()) return new String[0];
+        File dir = baseDir();
+        if (dir == null || !dir.exists()) 
+            return new String[0];
 
         LinkedList<String> nameList = new LinkedList<String>();
         File[] files = dir.listFiles();
