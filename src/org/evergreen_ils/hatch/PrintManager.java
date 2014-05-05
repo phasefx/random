@@ -296,6 +296,8 @@ public class PrintManager {
         Map<String,Object> settings = new HashMap<String,Object>();
         JobSettings jobSettings = job.getJobSettings();
 
+        logger.info("Extracting print job settings from " + job);
+
         settings.put(
             jobSettings.collationProperty().getName(),
             jobSettings.collationProperty().getValue()
