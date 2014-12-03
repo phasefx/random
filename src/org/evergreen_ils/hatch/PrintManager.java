@@ -393,7 +393,8 @@ public class PrintManager {
             HashMap<String, Object> printerMap = new HashMap<String, Object>();
             printerMaps.add(printerMap);
             printerMap.put("name", printer.getName());
-            if (printer.getName().equals(defaultPrinter.getName())) {
+            if (defaultPrinter != null && 
+                printer.getName().equals(defaultPrinter.getName())) {
                 printerMap.put("is-default", new Boolean(true));
             }
             logger.info("found printer " + printer.getName());            

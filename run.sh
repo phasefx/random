@@ -1,5 +1,5 @@
-JAVA_HOME=jdk1.8.0
-JETTY_HOME=jetty-distribution-9.1.4.v20140401
+JAVA_HOME=jdk1.8
+JETTY_HOME=jetty
 
 # compile
 $JAVA_HOME/bin/javac \

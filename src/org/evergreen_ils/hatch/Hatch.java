@@ -153,6 +153,11 @@ public class Hatch extends Application {
         String content = (String) params.get("content");
         String contentType = (String) params.get("contentType");
 
+        if (content == null) {
+            logger.warn("handlePrint() called with no content");
+            return;
+        }
+
         browser = new BrowserView();
         Scene scene = new Scene(browser);
         primaryStage.setScene(scene);

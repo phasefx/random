@@ -1,3 +1,29 @@
 Hatch - Java Print / Storage / Etc Service
 
-TODO: more info
+** ROUGH SETUP NOTES **
+
+Install Hatch on your desktop -- Linux edition: 
+
+% wget http://download.eclipse.org/jetty/stable-9/dist/jetty-distribution-9.2.5.v20141112.tar.gz 
+% tar -zxf jetty-distribution-9.2.5.v20141112.tar.gz 
+% ln -s jetty-distribution-9.2.5.v20141112 jetty
+
+# download jdk1.8 (requires license agreement) -- haven't tested on openjdk yet. 
+# http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+# and extract in the same directory
+% ln -s jdk1.8.0_25 jdk1.8
+
+% mkdir lib
+% wget -O lib/jetty-util-ajax-9.2.5.v20141112.jar \
+    'http://central.maven.org/maven2/org/eclipse/jetty/jetty-util-ajax/9.2.5.v20141112/jetty-util-ajax-9.2.5.v20141112.jar'
+
+# compile
+% ./run.sh
+
+# compile + run
+% ./run.sh 1
+
+# open https://localhost:8443/ in Chrome and click through the security warning.
+# Then open the browser client.
+# Set "This workstation uses a remote print / storage service ("Hatch")?" under Admin -> Workstation
+# optionally configure / test printing
