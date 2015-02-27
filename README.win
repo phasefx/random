@@ -1,0 +1,59 @@
+Hatch - Java Print / Storage / Etc Service
+
+** ROUGH SETUP NOTES **
+
+Install Hatch on your desktop -- Windows edition: 
+
+If you're reading this online, first download hatch to your desktop.
+
+The canonical location for this project is:
+http://git.evergreen-ils.org/?p=working/random.git;a=shortlog;h=refs/heads/collab/berick/hatch2
+
+But a convenient mirror and download link is this:
+https://github.com/phasefx/random/archive/hatch.zip
+
+Unzip the file wherever you'd like to install the application, such as in C:\Program Files\
+
+Then go to http://download.eclipse.org/jetty/
+
+Download the latest stable-9 .zip version into the same directory as this README file.
+
+Unzip and rename the folder to "jetty".
+
+Then go to http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+
+Download the Development Kit .exe for your version of Windows.
+
+Install it.
+
+In the same directory as this README file, create a subdirectory named "lib".
+
+Then go to http://mvnrepository.com/artifact/org.eclipse.jetty/jetty-util-ajax
+
+Download the latest 9.2.x .jar file into the "lib" directory.
+
+Edit the run-win.bat file, and, if needed, change the JAVA_HOME variable to the location where you installed the Java Development Kit.  In my case, I changed the line:
+
+SET JAVA_HOME="C:\Program Files\Java\jdk1.8.0_20"
+
+to
+
+SET JAVA_HOME="C:\Program Files\Java\jdk1.8.0_31"
+
+Then open a Command window and cd into the same directory as this README file.  One easy way to do this is to click into the address of the bar of window displaying the directory, typing "cmd" and pressing enter.
+
+Then enter:
+run-win.bat
+
+Choose Allow for any Firewall/Security prompt.
+
+Then in a browser go to https://localhost:8443/ in Chrome and click through the security warning.
+(In my case, I clicked on the link "Advanced" and then "Proceed to localhost (unsafe)")
+
+You should expect a 404 Not Found page.
+
+Then open the browser client.
+
+Set "This workstation uses a remote print / storage service ("Hatch")?" under Admin -> Workstation
+
+Optionally configure / test printing
