@@ -47,7 +47,7 @@ run-win.bat
 
 Choose Allow for any Firewall/Security prompt.
 
-Then in a browser go to https://localhost:8443/ in Chrome and click through the security warning.
+Then go to https://localhost:8443/ in Chrome and click through the security warning.
 (In my case, I clicked on the link "Advanced" and then "Proceed to localhost (unsafe)")
 
 You should expect a 404 Not Found page.
