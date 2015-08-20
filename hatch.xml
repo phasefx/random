@@ -45,10 +45,10 @@
   <New id="sslContextFactory" class="org.eclipse.jetty.util.ssl.SslContextFactory">
     <!-- TODO: make this better -->
     <Set name="KeyStorePath"><Property name="jetty.home" default="." />/jetty/etc/keystore</Set>
-    <Set name="KeyStorePassword">OBF:1vny1zlo1x8e1vnw1vn61x8g1zlu1vn4</Set>    
-    <Set name="KeyManagerPassword">OBF:1u2u1wml1z7s1z7a1wnl1u2g</Set>          
+    <Set name="KeyStorePassword">password</Set>
+    <Set name="KeyManagerPassword">password</Set>
     <Set name="TrustStorePath"><Property name="jetty.home" default="." />/jetty/etc/keystore</Set>
-    <Set name="TrustStorePassword">OBF:1vny1zlo1x8e1vnw1vn61x8g1zlu1vn4</Set>  
+    <Set name="TrustStorePassword">password</Set>
   </New> 
 
   <New id="sslHttpConfig" class="org.eclipse.jetty.server.HttpConfiguration">  
@@ -86,7 +86,6 @@
     </Arg>                                                                     
   </Call> 
 
-
   <!-- HTTP connector -->
   <Call name="addConnector">
     <Arg>
@@ -111,48 +110,32 @@
     </Arg>
   </Call>
 
-  <!-- websockets handler setup -->
+  <!-- TODO get properties working for:
+      jetty.proxy.maxThreads
+      jetty.proxy.maxConnections
+      jetty.proxy.idleTimeout
+      jetty.proxy.timeout
+  -->
+
+
+  <!-- wrap our websocketservlet into something the server can run -->
+  <New id="context" class="org.eclipse.jetty.servlet.ServletContextHandler">
+    <Set name="contextPath">/</Set>
+    <Call name="addServlet">
+      <Arg>org.evergreen_ils.hatch.HatchWebSocketServlet</Arg>
+      <Arg>/hatch</Arg>
+    </Call>
+  </New>
+
+  <!-- set our websocket handler as the server handler -->
   <Set name="handler">
-    <New class="org.eclipse.jetty.server.handler.HandlerList">
+    <New class="org.eclipse.jetty.server.handler.HandlerCollection">
       <Set name="handlers">
         <Array type="org.eclipse.jetty.server.Handler">
-          <Item>
-            <New class="org.eclipse.jetty.servlet.ServletHandler">
-              <Call id="proxyHolder" name="addServletWithMapping">
-                <Arg>
-                  <Property name="jetty.proxy.servletClass" 
-                    default="org.evergreen_ils.hatch.HatchWebSocketServlet"/>
-                </Arg>
-                <Arg>
-                  <Property name="jetty.proxy.servletMapping" default="/hatch"/>
-                </Arg>
-                <Call name="setInitParameter">
-                  <Arg>maxThreads</Arg>
-                  <Arg>
-                    <Property name="jetty.proxy.maxThreads" default="128"/>
-                  </Arg>
-                </Call>
-                <Call name="setInitParameter">
-                  <Arg>maxConnections</Arg>
-                  <Arg>
-                    <Property name="jetty.proxy.maxConnections" default="256"/>
-                  </Arg>
-                </Call>
-                <Call name="setInitParameter">
-                  <Arg>idleTimeout</Arg>
-                  <Arg>
-                    <Property name="jetty.proxy.idleTimeout" default="60000"/>
-                  </Arg>
-                </Call>
-                <Call name="setInitParameter">
-                  <Arg>timeout</Arg>
-                  <Arg>
-                    <Property name="jetty.proxy.timeout" default="60000"/>
-                  </Arg>
-                </Call>
-              </Call>
-            </New>
-          </Item>
+        <Item> <Ref refid="context" /> </Item>
+        <Item>
+          <New class="org.eclipse.jetty.server.handler.DefaultHandler" />
+        </Item>
         </Array>
       </Set>
     </New>
