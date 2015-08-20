@@ -17,6 +17,12 @@ Install Hatch on your desktop -- Linux edition:
 % wget -O lib/jetty-util-ajax-9.2.5.v20141112.jar \
     'http://central.maven.org/maven2/org/eclipse/jetty/jetty-util-ajax/9.2.5.v20141112/jetty-util-ajax-9.2.5.v20141112.jar'
 
+# create an SSL certificat for jetty
+# if you use a password other than "password", modify references to 
+# "password" in hath.xml (in the top directory).
+% cd jetty/etc/
+% ../../jdk1.8/bin/keytool -keystore keystore -alias jetty -genkey -keyalg RSA
+
 # compile
 % ./run.sh
 
